@@ -12,7 +12,9 @@ LazyData: true
 Imports: 
     ape,
     data.table,
-    phangorn
+    phangorn,
+    phytools,
+    tidytree
 Suggests: 
     optparse,
     testthat (>= 3.0.0)
