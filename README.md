@@ -9,12 +9,16 @@
 Memento is a suite of functions to find change points in phenotype
 states on a phylogeny.
 
-Suppose you have the number of (methylated and unmethylated) reads
-counts for a CpG site across all tips of a phylogeny. Memento will take
-the two vectors of counts as well as the phylogeny of tips and return
-the most likely root state, which branches changed and what type of
-change occurred on the branches. Memento relies on naive Bayes as it
-generates all possible tip state vectors for up to m number of
+Suppose you know the number of methylated and unmethylated reads counts
+at a CpG site across all tips of a phylogeny. The question memento
+addresses is whether the tip states are inherited from the root and
+whether any of the intermediate nodes changed its state, which was then
+inherited by its descendants.
+
+Memento will take two vectors of counts as well as the phylogeny of tips
+and return the most likely root state, which branches changed and what
+type of change occurred on the branches. Memento relies on naive Bayes
+as it generates all possible tip state vectors for up to m number of
 independent changes on a phylogeny and then compares the observed data
 to each possible expected vector of tip states. The vector with highest
 similarity is selected and since we know how that vector was generated,
@@ -24,6 +28,8 @@ If the phylogeny is very big (say, contains more than 20 tips), memento
 can split the tree, infer most likely state changes on each subtree and
 then combine the partial solutions to infer the most likely solution for
 the full tree.
+
+Memento also works on phased data.
 
 Memento also contains visualisation functions, can find the second,
 third etc. best solution etc.
