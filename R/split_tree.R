@@ -75,8 +75,8 @@ generate_tree_partition <- function(tree,
     if(length(internal_nodes) == 0){
       tree_unit <- tree
       tree_unit$edge.length <- rep(1, length(tree_unit$edge.length))
-      plot.phylo(tree_unit)
-      stop(sprintf("Cannot create tree - modify cutoffs. Upper: %i, lower: %i\n", cutoff_upper, cutoff_lower ))
+      # ape::plot.phylo(tree_unit)
+      stop(sprintf("Cannot create tree - modify cutoffs (upper: %i, lower: %i) or input custom node list.\n", cutoff_upper, cutoff_lower ))
     }
   }else{
     internal_nodes <- as.integer(custom_nodes)
@@ -145,7 +145,7 @@ generate_tree_partition <- function(tree,
   tree_df_copy$node <- tree_df_copy$node_new
   tree_df_copy <- tree_df_copy[order(tree_df_copy$node),]
 
-  new_root_phylo <- as.phylo(tree_df_copy)
+  new_root_phylo <- ape::as.phylo(tree_df_copy)
 
   pairs_extra_new <- paste0(new_root_phylo$edge[,1], "_", new_root_phylo$edge[,2])
   idx <- match(tree_df$pairs_new, pairs_extra_new)
@@ -256,23 +256,47 @@ find_orig_node_in_current <- function(full_tree, original_node, current_tree){
   return(internal[new_node])
 }
 
+#' Divide a tree into smaller subtrees
+#'
+#' @param full_tree ape object.
+#' @param min_subtree_size Minimum number of tips on a subtree.
+#' @param max_subtree_size Maximum number of tips on a subtree.
+#' @param custom_nodes List of subtree node roots.
+#'
+#' @return A list of subtrees (each of class "phylo")
+#' @export
+#'
+#' @examples
+#' data(memento)
+#' custom_trees <- divide_tree_into_subtrees(full_tree = tree,
+#' custom_nodes = c(12, 16, 17))
+#'
+#' auto_trees <- divide_tree_into_subtrees(full_tree = tree,
+#' min_subtree_size = 2,
+#' max_subtree_size = 6)
+#'
 divide_tree_into_subtrees <- function(full_tree,
-                                      min_subtree_ = 5,
-                                      max_subtree_ = 20,
+                                      min_subtree_size = 5,
+                                      max_subtree_size = 20,
                                       custom_nodes = NULL){
+
+  if(!all(grepl("[[:alpha:]]", full_tree$tip.label))){
+    stop("All tip labels must begin with a character. Rename tip labels.")
+  }
+
   tmp_list <- list("root"=full_tree)
   nest_level <- list()
 
   if(is.null(custom_nodes)){
     subtree_sizes <- sapply(tmp_list, get_tree_ntips)
-    tree_correct_size <- subtree_sizes >= min_subtree_ & subtree_sizes <= max_subtree_
+    tree_correct_size <- subtree_sizes >= min_subtree_size & subtree_sizes <= max_subtree_size
 
     while_counter <- 1
     while(!all(tree_correct_size)){
       problematic_tree <- tmp_list[[which(tree_correct_size == FALSE)]]
       sub_root_trees <- generate_tree_partition(tree = problematic_tree,
-                                                cutoff_upper = max_subtree_,
-                                                cutoff_lower = min_subtree_,
+                                                cutoff_upper = max_subtree_size,
+                                                cutoff_lower = min_subtree_size,
                                                 original_tree = full_tree)
       tmp_list[[which(tree_correct_size == FALSE)]] <- NULL
       tmp_list <- c(tmp_list, sub_root_trees)
@@ -280,7 +304,7 @@ divide_tree_into_subtrees <- function(full_tree,
       tmp_subtree_nodes_id <- paste0(names(tmp_list), collapse = "_")
 
       sub_root_trees_sizes <- sapply(tmp_list, get_tree_ntips)
-      tree_correct_size <- sub_root_trees_sizes >= min_subtree_ & sub_root_trees_sizes <= max_subtree_
+      tree_correct_size <- sub_root_trees_sizes >= min_subtree_size & sub_root_trees_sizes <= max_subtree_size
       while_counter <- while_counter + 1
       if(while_counter > 20){
         stop("Stuck in while loop?")
@@ -291,8 +315,8 @@ divide_tree_into_subtrees <- function(full_tree,
     atree <- full_tree
     for(i in 1:length(custom_order)){
       sub_root_trees2 <- generate_tree_partition(tree = atree,
-                                                 cutoff_upper = max_subtree_,
-                                                 cutoff_lower = min_subtree_,
+                                                 cutoff_upper = max_subtree_size,
+                                                 cutoff_lower = min_subtree_size,
                                                  original_tree = full_tree,
                                                  custom_nodes = custom_order[i])
       atree <- sub_root_trees2$root
@@ -311,6 +335,5 @@ divide_tree_into_subtrees <- function(full_tree,
 
   all_trees <- tmp_list
 
-  return(list("all_trees" = all_trees,
-              "nest_level" = nest_level))
+  return(all_trees)
 }
