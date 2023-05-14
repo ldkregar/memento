@@ -11,6 +11,8 @@ Encoding: UTF-8
 LazyData: true
 Imports: 
     ape,
+    DescTools,
+    matrixcalc,
     phangorn,
     phytools,
     tidytree
