@@ -12,7 +12,7 @@ divide_tree_into_subtrees(
 )
 }
 \arguments{
-\item{full_tree}{ape object.}
+\item{full_tree}{"phylo" object.}
 
 \item{min_subtree_size}{Minimum number of tips on a subtree.}
 
