@@ -258,7 +258,7 @@ find_orig_node_in_current <- function(full_tree, original_node, current_tree){
 
 #' Divide a tree into smaller subtrees
 #'
-#' @param full_tree ape object.
+#' @param full_tree "phylo" object.
 #' @param min_subtree_size Minimum number of tips on a subtree.
 #' @param max_subtree_size Maximum number of tips on a subtree.
 #' @param custom_nodes List of subtree node roots.
