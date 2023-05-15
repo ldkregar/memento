@@ -7,7 +7,7 @@
 set_memento_settings(new_number_of_states)
 }
 \arguments{
-\item{new_number_of_states}{integer value for number of states: 2, 3 or 4}
+\item{new_number_of_states}{integer value for number of states: 3 or 4 (requires phased data)}
 }
 \description{
 Change my settings
