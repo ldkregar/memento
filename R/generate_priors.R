@@ -82,57 +82,9 @@ find_ancestor_edge <- function(tree, edge){
   }
 }
 
-rebase <- function(b, base = 10){
-  base <- as.integer(base)
-
-  znj <- lapply(b, function(x){
-    n   <- ceiling(log(x, base))
-    vec <- numeric()
-    val <- x
-
-    while(n >= 0){
-      rem <- val %/% base^n
-      val <- val - rem * base^n
-      vec <- c(vec, rem)
-      n <- n - 1
-    }
-
-    while(vec[1] == 0 & length(vec) > 1) vec <- vec[-1]
-    return(vec)
-  })
-  return(unlist(znj))
-}
-
-add_padding <- function(v, new_length){
-  while(length(v) < new_length){
-    v <- c(0, v)
-  }
-  return(v)
-}
-
-get_change_combinations_4s <- function(n_changes_){
-  # n_changes_ = n_changes
-  possible_perm <- 1:((the$number_of_states-1)**n_changes_)-1
-  change_combination <- sapply(possible_perm, function(x){ rebase(x, (the$number_of_states-1))} )
-  last_item <- change_combination[[length(change_combination)]]
-  change_combination2 <- lapply(change_combination, add_padding, new_length = length(last_item))
-  change_combination <- do.call("rbind", change_combination2)
-  names_of_changes <- apply(change_combination, 1, function(x){
-    y <- as.character(x)
-    y[y == "0"] <- "A"
-    y[y == "1"] <- "B"
-    y[y == "2"] <- "C"
-    y[y == "3"] <- "D"
-    return(paste0(y, collapse = ""))
-  })
-  change_combination <- change_combination + 1 # this way you get indices
-  return(list("change_combinations" = change_combination,
-              "names_of_changes" = names_of_changes))
-}
-
 add_mtx_to_change_comb_file <- function(n_changes_){
   additional_matrix <- get_change_combinations_4s(n_changes_)
-  change_combs_list[[as.character(n_changes_)]] <- additional_matrix
+  the$change_combs_list[[as.character(n_changes_)]] <- additional_matrix
   # save(change_combs_list, file = change_comb_file)
   return(additional_matrix)
 }
@@ -282,8 +234,8 @@ generate_priors_hemimeth <- function(changes_on_branch,
 
   previous_edges <- sapply(1:nrow(tree_$edge), find_ancestor_edge, tree = tree_)
 
-  if(!is.null(change_combs_list[[as.character(n_changes)]])){
-    change_combination_list <- change_combs_list[[as.character(n_changes)]]
+  if(!is.null(the$change_combs_list[[as.character(n_changes)]])){
+    change_combination_list <- the$change_combs_list[[as.character(n_changes)]]
   }else{
     change_combination_list <- add_mtx_to_change_comb_file(n_changes)
   }
