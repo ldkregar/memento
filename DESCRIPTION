@@ -11,11 +11,13 @@ Encoding: UTF-8
 LazyData: true
 Imports: 
     ape,
+    data.table (>= 1.9.8),
     DescTools,
+    hash,
     matrixcalc,
     phangorn,
     phytools,
-    Rcpp,
+    plyr,
     tidytree
 Suggests: 
     optparse,
