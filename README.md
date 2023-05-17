@@ -198,7 +198,7 @@ for(i in 1:6){
 }
 ```
 
-<img src="man/figures/README-unnamed-chunk-6-1.png" width="350" height="500" style="display: block; margin: auto;" />
+<img src="man/figures/README-unnamed-chunk-6-1.png" width="600" height="800" style="display: block; margin: auto;" />
 Nice. Let’s compute the priors and find changes.
 
 ``` r
