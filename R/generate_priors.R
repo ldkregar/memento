@@ -49,29 +49,6 @@ even <- function(x) base::subset(x, x %% 2 == 0)
 
 odd <- function(x) base::subset(x, x %% 2 == 1)
 
-generate_permutations <- function(n, m = m, only_one = FALSE){
-  # prepare all permutations across n positions which have up to m changes
-  z <- rep(0, n)
-  if(only_one){
-    lists <- DescTools::CombSet(x = 1:n, m = m, as.list = TRUE)
-    b <- lapply(lists, FUN=function(k) {z[k]=1; z})
-    c <- do.call("rbind", b)
-  }else{
-    if(m %% 2 == 0){
-      selection <- even(0:m)
-    }else{
-      selection <- odd(0:m)
-    }
-    lists <- lapply(selection, function(x){
-      return(DescTools::CombSet(0:n, x, as.list = TRUE))
-    })
-    a <- do.call("c", lists)
-    b <- lapply(a, FUN=function(k) {z[k]=1; z})
-    c <- do.call("rbind", b)
-  }
-  return(c)
-}
-
 find_ancestor_edge <- function(tree, edge){
   rt = ape::Ntip(tree)+1
   anc = tree$edge[edge,1]
@@ -354,10 +331,9 @@ generate_priors <- function(all_trees,
 
     ##  rates expressed as per cpg per year
     ##  Mutation rates are human mutation rate = 20/3e9 per base
-    human.snv.rate.per.base=20/3e9
 
-    epi_mut_rate_fwd_ <- epi_fwd*human.snv.rate.per.base
-    epi_mut_rate_bck_ <- epi_bck*human.snv.rate.per.base
+    epi_mut_rate_fwd_ <- epi_fwd*the$human.snv.rate.per.base
+    epi_mut_rate_bck_ <- epi_bck*the$human.snv.rate.per.base
 
     if(the$number_of_states == 2){
       p2_list <- lapply(weighted_branch_lenghts,
