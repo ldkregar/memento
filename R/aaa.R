@@ -1,5 +1,6 @@
 the <- new.env(parent = emptyenv())
 the$number_of_states <- 3
+the$human.snv.rate.per.base=20/3e9
 the$all_possible_states <- c(1:the$number_of_states)
 the$state_transition_mtx <- matrix(1:the$number_of_states**2,
                                    the$number_of_states,
@@ -38,12 +39,7 @@ add_padding <- function(v, new_length){
 }
 
 get_change_combinations_4s <- function(n_changes_){
-  # n_changes_ = n_changes
-  # possible_perm <- 1:((the$number_of_states-1)**n_changes_)-1
-  # possible_perm <- 1:((3-1)**n_changes_)-1
   possible_perm <- 1:((get("number_of_states", envir = the) -1)**n_changes_)-1
-  # change_combination <- sapply(possible_perm, function(x){ rebase(x, (the$number_of_states-1))} )
-  # change_combination <- sapply(possible_perm, function(x){ rebase(x, (3-1))} )
   change_combination <- sapply(possible_perm, function(x){ rebase(x, (get("number_of_states", envir = the) -1))} )
   last_item <- change_combination[[length(change_combination)]]
   change_combination2 <- lapply(change_combination, add_padding, new_length = length(last_item))
@@ -74,15 +70,19 @@ memento_settings <- function() {
               "all_possible_states" = the$all_possible_states,
               "state_transition_mtx" = the$state_transition_mtx,
               "state_transition_vec_out" = the$state_transition_vec_out,
+              "human.snv.rate.per.base" = the$human.snv.rate.per.base,
               "length_change_comb_list" = length(the$change_combs_list)))
 }
 
 #' Change my settings
 #' @param new_number_of_states integer value for number of states: 3 or 4 (requires phased data)
+#' @param human.snv.rate.per.base human snv rate per base (usually 20/3e9)
 #' @export
-set_memento_settings <- function(new_number_of_states) {
+set_memento_settings <- function(new_number_of_states, human.snv.rate.per.base = NULL){
   old_num_states <- the$number_of_states
-
+  if(!is.null(human.snv.rate.per.base)){
+    the$human.snv.rate.per.base <- human.snv.rate.per.base
+  }
   the$number_of_states <- new_number_of_states
 
   the$all_possible_states <- c(1:the$number_of_states)
