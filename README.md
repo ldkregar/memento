@@ -140,10 +140,6 @@ edgelabels()}
 
 <img src="man/figures/README-unnamed-chunk-2-1.png" width="100%" />
 
-``` r
-# full_tree <- tree
-```
-
 Can’t see a thing. Let’s see what a tree with branch length = 1 looks
 like.
 
@@ -157,28 +153,29 @@ edgelabels(cex = 0.5)}
 
 <img src="man/figures/README-unnamed-chunk-3-1.png" width="100%" />
 
-This tree is kind of big. If we allow more than 3 independent changes,
-computing the priors will be time consuming. To avoid this, we can split
-the tree into smaller subtrees, and assign changes to each subtree.
-Allowing 3 changes per subtree across 2 subtrees, we can find up to 6
-changes on the full tree (2 subtrees \* 3 changes per subtree).
+That’s better. This tree is kind of big though. If we allow more than 3
+independent changes, computing the priors will be time consuming. To
+avoid this, we can split the tree into smaller subtrees, and assign
+changes to each subtree. Allowing 3 changes per subtree across 2
+subtrees, we can find up to 6 changes on the full tree (2 subtrees \* 3
+changes per subtree).
 
 ``` r
-#full_tree_children_by_edge <- return_edge_descendants(full_tree)
 subtrees <- divide_tree_into_subtrees(full_tree = tree, max_subtree_size = 15)
 #> Error in generate_tree_partition(tree = problematic_tree, cutoff_upper = max_subtree_size, : Cannot create tree - modify cutoffs (upper: 15, lower: 5) or input custom node list.
 ```
 
-Sometimes, the tree doesn’t fall apart into subtrees nicely. Try to play
-around with various cutoffs (aim for between 5 and 20 tips per subtree),
-or you can provide a list of custom nodes to use as subtree roots. This
-requires manual inspection of the tree and hand picking the nodes.
+Sometimes, the tree doesn’t fall apart into subtrees *nicely*. Try to
+play around with various cutoffs (aim for between 5 and 20 tips per
+subtree), or you can provide a list of custom nodes to use as subtree
+roots. This requires manual inspection of the tree and hand picking the
+nodes.
 
 ``` r
 subtrees <- divide_tree_into_subtrees(full_tree = tree, max_subtree_size = 12)
 ```
 
-Success!
+Yay, this worked. Let’s see what these look like.
 
 ``` r
 j <- rep(c(1:3), each = 2)
@@ -201,16 +198,8 @@ for(i in 1:6){
 }
 ```
 
-<div class="figure" style="text-align: center">
-
-<img src="man/figures/README-unnamed-chunk-6-1.png" alt="output" width="100%" />
-<p class="caption">
-output
-</p>
-
-</div>
-
-Nice. Let’s compute the priors per subtree and find changes per subtree.
+<img src="man/figures/README-unnamed-chunk-6-1.png" width="350" height="500" style="display: block; margin: auto;" />
+Nice. Let’s compute the priors and find changes.
 
 ``` r
 # compute priors
