@@ -4,10 +4,12 @@
 \alias{set_memento_settings}
 \title{Change my settings}
 \usage{
-set_memento_settings(new_number_of_states)
+set_memento_settings(new_number_of_states, human.snv.rate.per.base = NULL)
 }
 \arguments{
 \item{new_number_of_states}{integer value for number of states: 3 or 4 (requires phased data)}
+
+\item{human.snv.rate.per.base}{human snv rate per base (usually 20/3e9)}
 }
 \description{
 Change my settings
