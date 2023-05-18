@@ -267,13 +267,15 @@ find_orig_node_in_current <- function(full_tree, original_node, current_tree){
 #' @export
 #'
 #' @examples
-#' data(memento)
-#' custom_trees <- divide_tree_into_subtrees(full_tree = tree,
+#' \dontrun{
+#' data(sim_object)
+#' custom_trees <- divide_tree_into_subtrees(full_tree = sim_object$tree,
 #' custom_nodes = c(12, 16, 17))
 #'
-#' auto_trees <- divide_tree_into_subtrees(full_tree = tree,
+#' auto_trees <- divide_tree_into_subtrees(full_tree = sim_object$tree,
 #' min_subtree_size = 2,
 #' max_subtree_size = 6)
+#' }
 #'
 divide_tree_into_subtrees <- function(full_tree,
                                       min_subtree_size = 5,
