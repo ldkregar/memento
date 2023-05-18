@@ -7,8 +7,8 @@
 generate_priors(
   full_tree,
   all_trees = NULL,
-  epi_fwd = 1e+05,
-  epi_bck = 1e+05,
+  epi_fwd = NULL,
+  epi_bck = NULL,
   m = 2,
   verbose = TRUE
 )
