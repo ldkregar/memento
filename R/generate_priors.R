@@ -303,15 +303,16 @@ generate_genotypes <- function(a_t,
 #'  number_of_states <- 3
 #'  generate_priors(all_trees = list("root" = tree), m = 2)
 #' }
-generate_priors <- function(all_trees,
-                           epi_fwd = 1e5,
-                           epi_bck = 1e5,
-                           m = 2,
-                           full_tree = NULL,
-                           verbose = TRUE){
-  if(length(all_trees) == 1 & is.null(full_tree)){
-    full_tree <- all_trees[[1]]
+generate_priors <- function(full_tree,
+                            all_trees = NULL,
+                            epi_fwd = 1e5,
+                            epi_bck = 1e5,
+                            m = 2,
+                            verbose = TRUE){
+  if(is.null(all_trees)){
+    all_trees <- list("root" = full_tree)
   }
+
   if(is.null(full_tree)) stop("Must provide full tree")
 
   priors_per_subtree <- vector("list", length = length(all_trees))
