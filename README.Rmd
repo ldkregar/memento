@@ -13,23 +13,24 @@ knitr::opts_chunk$set(
 )
 ```
 
-# memento
+# Memento
 
 <!-- badges: start -->
 <!-- badges: end -->
 
 Memento is a suite of functions to find change points in phenotype states on a phylogeny.
 
-Suppose you know the number of methylated and unmethylated reads counts at a CpG site across all tips of a phylogeny. The question memento addresses is whether the tip states are inherited from the root and whether any of the internal nodes changed its state, which was then inherited by its descendants.
+Suppose you know the number of methylated and unmethylated read counts at a CpG site across all tips of a phylogeny. The question Memento addresses is whether the tip states are inherited from the root and whether any of the internal nodes changed its state, which was then inherited by its descendants.
 
-Memento will take two vectors of counts as well as the phylogeny of tips and return the most likely root state, which branches changed and what type of change occurred on the branches.
-Memento relies on naive Bayes as it generates all possible tip state vectors for up to m number of independent changes on a phylogeny and then compares the observed data to each possible expected vector of tip states. The vector with highest similarity is selected and since we know how that vector was generated, we can infer the root state and which branches changed.
+Memento will take two vectors of counts as well as the phylogeny of tips and return the most likely root state, which branches changed and what type of change occurred on the branches. Memento relies on naive Bayes as it generates all possible tip state vectors for up to m number of independent changes on a phylogeny and then compares the observed data to each possible expected vector of tip states. The vector with highest similarity is selected and since we know how that vector was generated, we can infer the root state and which branches changed.
 
-If the phylogeny is very big (say, contains more than 20 tips), memento allows the user to split the tree, infer most likely state changes on each subtree and then combine the partial solutions to infer the most likely solution for the full tree.
+Something about number of combinations
+
+If the phylogeny is very big (say, contains more than 20 tips), Memento allows the user to split the tree, infer most likely state changes on each subtree and then combine the partial solutions to infer the most likely solution for the full tree.
 
 Memento also works on phased data and can infer whether a change happened on maternal and/or paternal chromosome. This is referred to as the 4 state model.
 
-Since memento computes probabilities for a large set of possible tip states, it can also return second, third ... best solution.
+Since Memento computes probabilities for a large set of possible tip states, it can also return second, third ... best solution.
 
 Memento also contains several visualisation functions.
 
@@ -37,7 +38,7 @@ Priors assume x.
 
 ## Installation
 
-You can install the development version of memento from [GitHub](https://github.com/) with:
+You can install the development version of Memento from [GitHub](https://github.com/) with:
 
 ``` r
 # install.packages("devtools")
@@ -48,7 +49,7 @@ devtools::install_github("ldkregar/memento")
 
 Let's load an object of simulated data for 100 sites. 
 
-```{r example}
+```{r load_lib_object}
 library(ape)
 library(data.table)
 library(memento)
@@ -58,7 +59,7 @@ object <- sim_object
 str(object)
 ```
 
-Followed by a bit of data cleaning and preparation...
+Followed by a bit of data cleaning...
 
 ```{r clean}
 meth_mtx <<- object$MF + object$MR
@@ -77,9 +78,9 @@ tree <- object$tree
 range(tree$edge.length)
 ```
 
-The tree's branch lengths are in units of years i.e. the individual's age. Memento assumes branch lengths represent the number of SNVs. Assuming each cell acquires 20 SNVs per year, we rescale the branch lengths to correspond to that. To avoid zero-length branches, we convert the bifurcating tree to a polytomous one.
+The tree's branch lengths are in units of years (the individual's age). However, Memento assumes branch lengths represent the number of single nucleotide variants (SNVs). Assuming each cell acquires 20 SNVs per year, we rescale the branch lengths to correspond to that. To avoid zero-length branches, we convert the bifurcating tree to a polytomous one.
 
-```{r}
+```{r rescale_poly}
 tree$edge.length <- tree$edge.length*20
 tree_di <- tree
 tree <- di2multi(tree) # convert to polytomy
@@ -89,9 +90,9 @@ nodelabels()
 edgelabels()}
 ```
 
-Can't see a thing. Let's see what a tree with branch length = 1 looks like.
+Everything is overlapping. Let's see what a tree in which each branch length is 1 unit long looks like.
 
-```{r}
+```{r plot_unit}
 unit_tree <- tree
 unit_tree$edge.length <- rep(1, length(unit_tree$edge.length))
 {plot.phylo(unit_tree)
@@ -99,7 +100,54 @@ nodelabels(cex = 0.5)
 edgelabels(cex = 0.5)}
 ```
 
-That's better. This tree is kind of big though. If we allow more than 3 independent changes, computing the priors will be time consuming. To avoid this, we can split the tree into smaller subtrees, and assign changes to each subtree. Allowing 3 changes per subtree across 2 subtrees, we can find up to 6 changes on the full tree (2 subtrees * 3 changes per subtree).
+That's better.
+
+Here, we'll be working with the three state model. The three states are demethylated, half-methylated and methylated, which corresponds to 0, 0.5 and 1 methlyated read fraction, respectively. The fraction is computed by dividing the number of methlyated reads by the total number of reads at that site. As there are 3 states, there are 9 possible transitions.
+To change the settings to a four state model, run set_memento_settings(new_number_of_states = 4).
+
+```{r settings}
+memento_settings()
+```
+The table below shows which state each transition starts from (row) and ends at (column).
+
+```{r echo=FALSE, results='asis'}
+library(knitr)
+states_mtx <- memento_settings()[["state_transition_mtx"]]
+new_names <- paste0(dimnames(states_mtx)[[1]], c(" (0)", " (0.5)", " (1)"))
+dimnames(states_mtx) <- list(new_names, new_names)
+kable(states_mtx, caption = "State transition matrix", "html")
+```
+
+
+Let's find changes. First we compute the priors, which are the probabilities of each expected tip state vector. We set m to 2, meaning we will find up to 2 independent changes on the phylogeny. We set n_top_br to 2, meaning we ask for best two assignments to be returned.
+
+```{r find_changes_full, cache=TRUE}
+priors <- generate_priors(full_tree = tree, m = 2)
+# find changes on each subtree
+assignments_full <- compute_probabilities(priors_per_tree = priors,
+                                     m_reads_matrix = meth_mtx,
+                                     u_reads_matrix = unmeth_mtx, 
+                                     n_top_br = 2,
+                                     ro = 0.95, 
+                                     verbose = TRUE)
+head(assignments_full, 10)
+
+```
+
+Great, we have assignments for each site. The columns only_branch, starting_state and branch_state show which branches changed, the starting state at the root node and which transitions the branches underwent. The column probability contains the probability of the assignment. Columns that start with ss contain the sum of branch lengths, which start in each possible state (here 1, 2 or 3, which correspond to demethylated, half-methylated and methylated, respectively). Columns that start with nt show the number of transitions of each type that occurred in that assignment.
+
+In the first row, the most likely assignment for this position is "n", which means "no branch" and the root and tip states are the same. The starting state is inferred to be in state 2 (half-methylated) and branch changes are of type 5 (the transition is from state 0.5 to 0.5). This assignment has a probability of 55%. The second row reports the second most likely assignment for this position and it has a probability of 26%.
+
+Position 1_11 (row 7) is most likely to have changed on branch 46. The root starting state is 3 (i.e. 1 or methylated) and branch 46 underwent transition 7, which is a change from 1 to 0.5.
+
+Let's see what these assignments actually look like.
+
+```{r hm_full}
+
+
+```
+
+This tree is kind of big though. If we allow more than 3 independent changes, computing the priors will be time consuming. To avoid this, we can split the tree into smaller subtrees, and assign changes to each subtree. Allowing 3 changes per subtree across 2 subtrees, we can find up to 6 changes on the full tree (2 subtrees * 3 changes per subtree).
 
 ```{r, error=TRUE}
 subtrees <- divide_tree_into_subtrees(full_tree = tree, max_subtree_size = 15)
@@ -113,7 +161,7 @@ subtrees <- divide_tree_into_subtrees(full_tree = tree, max_subtree_size = 12)
 
 Yay, this worked. Let's see what these look like.
 
-```{r, fig.asp=0.4, fig.align = "center", out.width = 800, out.height = 900, dpi = 350}
+```{r, fig.asp=0.4, fig.align = "center", out.width = 800, out.height = 800, dpi = 300}
 j <- rep(c(1:3), each = 2)
 par(mfrow = c(3, 2),
     mar = c(1, 1, 1, 1))
@@ -134,9 +182,9 @@ for(i in 1:6){
 }
 
 ```
-Nice. Let's compute the priors and find changes.
+Nice. Let's compute the priors and find changes on each subtree.
 
-```{r}
+```{r priors_sub, cache=TRUE}
 # compute priors
 priors_p_subtree <- generate_priors(all_trees = subtrees, full_tree = tree)
 
@@ -150,7 +198,7 @@ assignments <- lapply(priors_p_subtree,
 head(assignments[[1]])
 ```
 
-This is a table of changes on each subtree. "n" means no branch changed and tip states are the same as the root state. But branches are numbered relative to the subtree root, so we have to find which branch on the full tree they would correspond to.
+This is a table of changes on each subtree. But branches are numbered relative to the subtree root, so we have to find which branch on the full tree they would correspond to.
 
 ```{r}
 # find candidate changes on the full tree
@@ -164,7 +212,7 @@ Sweet, the combined branch column shows which branches might have changed on the
 
 We would like to get a parsimonious solution for the full tree, where we will know the most likely starting state at root, which branches changed and which states they transitioned from and to along with the solution's probability. To obtain this, we permute the candidate branches on the full tree and estimate their probability. We start with the full set (including all candidate changes) and a leave-one-out set. If the smaller set contains the most probable solution, we estimate the probability for a set that drops another branch, repeating the process until the not-smallest set contains the solution.
 
-```{r}
+```{r, cache=TRUE}
 mle_branch_dt <- find_most_likely_set(dt_pre =  converted_dt,
                                       full_tree = tree,
                                       ro = 0.95,
@@ -177,11 +225,11 @@ mle_branch_dt <- find_most_likely_set(dt_pre =  converted_dt,
 head(mle_branch_dt)
 ```
 
-Nice, we obtained the best two solutions for each site. The column probability contains the probability of the full solution. The columns only_branch, starting_state and branch_state show which branches changed, the starting state at the root node and which transitions the branches underwent. Columns that start with ss contain the sum of branch lengths, which start in each possible state (here 1, 2 or 3, which correspond to demethylated, half-methylated and methylated, respectively). Columns that start with nt show the number of transitions of each type.
+Nice, we obtained the best two solutions for each site. 
 
 Let's see what these changes look like.
 
-```{r plot_heatmap}
+```{r plot_heatmap_sub}
 
 ```
 

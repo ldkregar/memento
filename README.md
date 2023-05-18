@@ -1,7 +1,7 @@
 
 <!-- README.md is generated from README.Rmd. Please edit that file -->
 
-# memento
+# Memento
 
 <!-- badges: start -->
 <!-- badges: end -->
@@ -9,8 +9,8 @@
 Memento is a suite of functions to find change points in phenotype
 states on a phylogeny.
 
-Suppose you know the number of methylated and unmethylated reads counts
-at a CpG site across all tips of a phylogeny. The question memento
+Suppose you know the number of methylated and unmethylated read counts
+at a CpG site across all tips of a phylogeny. The question Memento
 addresses is whether the tip states are inherited from the root and
 whether any of the internal nodes changed its state, which was then
 inherited by its descendants.
@@ -24,7 +24,9 @@ to each possible expected vector of tip states. The vector with highest
 similarity is selected and since we know how that vector was generated,
 we can infer the root state and which branches changed.
 
-If the phylogeny is very big (say, contains more than 20 tips), memento
+Something about number of combinations
+
+If the phylogeny is very big (say, contains more than 20 tips), Memento
 allows the user to split the tree, infer most likely state changes on
 each subtree and then combine the partial solutions to infer the most
 likely solution for the full tree.
@@ -33,7 +35,7 @@ Memento also works on phased data and can infer whether a change
 happened on maternal and/or paternal chromosome. This is referred to as
 the 4 state model.
 
-Since memento computes probabilities for a large set of possible tip
+Since Memento computes probabilities for a large set of possible tip
 states, it can also return second, third … best solution.
 
 Memento also contains several visualisation functions.
@@ -42,7 +44,7 @@ Priors assume x.
 
 ## Installation
 
-You can install the development version of memento from
+You can install the development version of Memento from
 [GitHub](https://github.com/) with:
 
 ``` r
@@ -93,7 +95,7 @@ str(object)
 #>  $ UF     : int [1:100, 1:30] 3 1 1 3 0 3 1 0 6 0 ...
 ```
 
-Followed by a bit of data cleaning and preparation…
+Followed by a bit of data cleaning…
 
 ``` r
 meth_mtx <<- object$MF + object$MR
@@ -113,11 +115,12 @@ range(tree$edge.length)
 #> [1]  0.0291055 29.3378301
 ```
 
-The tree’s branch lengths are in units of years i.e. the individual’s
-age. Memento assumes branch lengths represent the number of SNVs.
-Assuming each cell acquires 20 SNVs per year, we rescale the branch
-lengths to correspond to that. To avoid zero-length branches, we convert
-the bifurcating tree to a polytomous one.
+The tree’s branch lengths are in units of years (the individual’s age).
+However, Memento assumes branch lengths represent the number of single
+nucleotide variants (SNVs). Assuming each cell acquires 20 SNVs per
+year, we rescale the branch lengths to correspond to that. To avoid
+zero-length branches, we convert the bifurcating tree to a polytomous
+one.
 
 ``` r
 tree$edge.length <- tree$edge.length*20
@@ -138,10 +141,10 @@ nodelabels()
 edgelabels()}
 ```
 
-<img src="man/figures/README-unnamed-chunk-2-1.png" width="100%" />
+<img src="man/figures/README-rescale_poly-1.png" width="100%" />
 
-Can’t see a thing. Let’s see what a tree with branch length = 1 looks
-like.
+Everything is overlapping. Let’s see what a tree in which each branch
+length is 1 unit long looks like.
 
 ``` r
 unit_tree <- tree
@@ -151,14 +154,194 @@ nodelabels(cex = 0.5)
 edgelabels(cex = 0.5)}
 ```
 
-<img src="man/figures/README-unnamed-chunk-3-1.png" width="100%" />
+<img src="man/figures/README-plot_unit-1.png" width="100%" />
 
-That’s better. This tree is kind of big though. If we allow more than 3
-independent changes, computing the priors will be time consuming. To
-avoid this, we can split the tree into smaller subtrees, and assign
-changes to each subtree. Allowing 3 changes per subtree across 2
-subtrees, we can find up to 6 changes on the full tree (2 subtrees \* 3
-changes per subtree).
+That’s better.
+
+Here, we’ll be working with the three state model. The three states are
+demethylated, half-methylated and methylated, which corresponds to 0,
+0.5 and 1 methlyated read fraction, respectively. The fraction is
+computed by dividing the number of methlyated reads by the total number
+of reads at that site. As there are 3 states, there are 9 possible
+transitions. To change the settings to a four state model, run
+set_memento_settings(new_number_of_states = 4).
+
+``` r
+memento_settings()
+#> $number_of_states
+#> [1] 3
+#> 
+#> $all_possible_states
+#> [1] 1 2 3
+#> 
+#> $state_transition_mtx
+#>   1 2 3
+#> 1 1 2 3
+#> 2 4 5 6
+#> 3 7 8 9
+#> 
+#> $state_transition_vec_out
+#> [1] 1 2 3 1 2 3 1 2 3
+#> 
+#> $human.snv.rate.per.base
+#> [1] 6.666667e-09
+#> 
+#> $length_change_comb_list
+#> [1] 11
+```
+
+The table below shows which state each transition starts from (row) and
+ends at (column).
+
+<table>
+<caption>
+State transition matrix
+</caption>
+<thead>
+<tr>
+<th style="text-align:left;">
+</th>
+<th style="text-align:right;">
+1 (0)
+</th>
+<th style="text-align:right;">
+2 (0.5)
+</th>
+<th style="text-align:right;">
+3 (1)
+</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:left;">
+1 (0)
+</td>
+<td style="text-align:right;">
+1
+</td>
+<td style="text-align:right;">
+2
+</td>
+<td style="text-align:right;">
+3
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+2 (0.5)
+</td>
+<td style="text-align:right;">
+4
+</td>
+<td style="text-align:right;">
+5
+</td>
+<td style="text-align:right;">
+6
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+3 (1)
+</td>
+<td style="text-align:right;">
+7
+</td>
+<td style="text-align:right;">
+8
+</td>
+<td style="text-align:right;">
+9
+</td>
+</tr>
+</tbody>
+</table>
+
+Let’s find changes. First we compute the priors, which are the
+probabilities of each expected tip state vector. We set m to 2, meaning
+we will find up to 2 independent changes on the phylogeny. We set
+n_top_br to 2, meaning we ask for best two assignments to be returned.
+
+``` r
+priors <- generate_priors(full_tree = tree, m = 2)
+#> Computing priors for tree root (1 of 1)
+# find changes on each subtree
+assignments_full <- compute_probabilities(priors_per_tree = priors,
+                                     m_reads_matrix = meth_mtx,
+                                     u_reads_matrix = unmeth_mtx, 
+                                     n_top_br = 2,
+                                     ro = 0.95, 
+                                     verbose = TRUE)
+#> Now working on tree with 30 tips: PD40521_Normal_EM1_F06, PD40521_Normal_EM1_A09, PD40521_Normal_EM1_A02, PD40521_Normal_EM1_C03, PD40521_Normal_EM1_D03, PD40521_Normal_EM1_H05, PD40521_Normal_EM1_F08, PD40521_Normal_EM1_F05, PD40521_Normal_EM1_H02, PD40521_Normal_EM1_H07, PD40521_Normal_EM1_A05, PD40521_Normal_EM1_E05, PD40521_Normal_EM1_F12, PD40521_Normal_EM1_E06, PD40521_Normal_EM1_E09, PD40521_Normal_EM1_G04, PD40521_Normal_EM1_F04, PD40521_Normal_EM1_C07, PD40521_Normal_EM1_D04, PD40521_Normal_EM1_A06, PD40521_Normal_EM1_D12, PD40521_Normal_EM1_A08, PD40521_Normal_EM1_H11, PD40521_Normal_EM1_D10, PD40521_Normal_EM1_D11, PD40521_Normal_EM1_G08, PD40521_Normal_EM1_C12, PD40521_Normal_EM1_D08, PD40521_Normal_EM1_G09, PD40521_Normal_EM1_B03
+#> Dim meth: 100, 30
+#> Dim unmeth: 100, 30
+#> Dim genotype: 30, 20187
+head(assignments_full, 10)
+#>     chr_pos rank probability      branch only_branch starting_state
+#>  1:     1_1    1 0.556247482       n.2:5           n              2
+#>  2:     1_1    2 0.264672962       9.2:4           9              2
+#>  3:    1_10    1 0.968121588       n.3:9           n              3
+#>  4:    1_10    2 0.006102008      55.3:8          55              3
+#>  5:   1_100    1 0.893292825       n.3:9           n              3
+#>  6:   1_100    2 0.050730020      29.3:8          29              3
+#>  7:    1_11    1 0.858374064      46.3:7          46              3
+#>  8:    1_11    2 0.070507264 46_55.3:7_8       46_55              3
+#>  9:    1_12    1 0.567715544      58.3:8          58              3
+#> 10:    1_12    2 0.359407749       n.3:9           n              3
+#>     branch_state ss_1     ss_2     ss_3 nt_1 nt_2 nt_3 nt_4 nt_5 nt_6 nt_7 nt_8
+#>  1:            5    0 16843.31     0.00    0    0    0    0   58    0    0    0
+#>  2:            4    0 16843.31     0.00    0    0    0    1   57    0    0    0
+#>  3:            9    0     0.00 16843.31    0    0    0    0    0    0    0    0
+#>  4:            8    0     0.00 16843.31    0    0    0    0    0    0    0    1
+#>  5:            9    0     0.00 16843.31    0    0    0    0    0    0    0    0
+#>  6:            8    0     0.00 16843.31    0    0    0    0    0    0    0    1
+#>  7:            7    0     0.00 16843.31    0    0    0    0    0    0    1    0
+#>  8:          7_8    0     0.00 16843.31    0    0    0    0    0    0    1    1
+#>  9:            8    0     0.00 16843.31    0    0    0    0    0    0    0    1
+#> 10:            9    0     0.00 16843.31    0    0    0    0    0    0    0    0
+#>     nt_9
+#>  1:    0
+#>  2:    0
+#>  3:   58
+#>  4:   57
+#>  5:   58
+#>  6:   57
+#>  7:   57
+#>  8:   56
+#>  9:   57
+#> 10:   58
+```
+
+Great, we have assignments for each site. The columns only_branch,
+starting_state and branch_state show which branches changed, the
+starting state at the root node and which transitions the branches
+underwent. The column probability contains the probability of the
+assignment. Columns that start with ss contain the sum of branch
+lengths, which start in each possible state (here 1, 2 or 3, which
+correspond to demethylated, half-methylated and methylated,
+respectively). Columns that start with nt show the number of transitions
+of each type that occurred in that assignment.
+
+In the first row, the most likely assignment for this position is “n”,
+which means “no branch” and the root and tip states are the same. The
+starting state is inferred to be in state 2 (half-methylated) and branch
+changes are of type 5 (the transition is from state 0.5 to 0.5). This
+assignment has a probability of 55%. The second row reports the second
+most likely assignment for this position and it has a probability of
+26%.
+
+Position 1_11 (row 7) is most likely to have changed on branch 46. The
+root starting state is 3 (i.e. 1 or methylated) and branch 46 underwent
+transition 7, which is a change from 1 to 0.5.
+
+Let’s see what these assignments actually look like.
+
+This tree is kind of big though. If we allow more than 3 independent
+changes, computing the priors will be time consuming. To avoid this, we
+can split the tree into smaller subtrees, and assign changes to each
+subtree. Allowing 3 changes per subtree across 2 subtrees, we can find
+up to 6 changes on the full tree (2 subtrees \* 3 changes per subtree).
 
 ``` r
 subtrees <- divide_tree_into_subtrees(full_tree = tree, max_subtree_size = 15)
@@ -198,8 +381,8 @@ for(i in 1:6){
 }
 ```
 
-<img src="man/figures/README-unnamed-chunk-6-1.png" width="800" height="900" style="display: block; margin: auto;" />
-Nice. Let’s compute the priors and find changes.
+<img src="man/figures/README-unnamed-chunk-5-1.png" width="800" height="800" style="display: block; margin: auto;" />
+Nice. Let’s compute the priors and find changes on each subtree.
 
 ``` r
 # compute priors
@@ -237,8 +420,7 @@ head(assignments[[1]])
 #> 6:   1_100    2 0.008051555 17.3:8          17              3            8
 ```
 
-This is a table of changes on each subtree. “n” means no branch changed
-and tip states are the same as the root state. But branches are numbered
+This is a table of changes on each subtree. But branches are numbered
 relative to the subtree root, so we have to find which branch on the
 full tree they would correspond to.
 
@@ -318,15 +500,7 @@ head(mle_branch_dt)
 #> 6:    0   58      2 100  0   0.0000 842.1654     1 100          NA       NA
 ```
 
-Nice, we obtained the best two solutions for each site. The column
-probability contains the probability of the full solution. The columns
-only_branch, starting_state and branch_state show which branches
-changed, the starting state at the root node and which transitions the
-branches underwent. Columns that start with ss contain the sum of branch
-lengths, which start in each possible state (here 1, 2 or 3, which
-correspond to demethylated, half-methylated and methylated,
-respectively). Columns that start with nt show the number of transitions
-of each type.
+Nice, we obtained the best two solutions for each site.
 
 Let’s see what these changes look like.
 
