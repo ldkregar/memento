@@ -2,15 +2,24 @@
 % Please edit documentation in R/aaa.R
 \name{set_memento_settings}
 \alias{set_memento_settings}
-\title{Change my settings}
+\title{Set memento settings}
 \usage{
-set_memento_settings(new_number_of_states, human.snv.rate.per.base = NULL)
+set_memento_settings(
+  new_number_of_states = NULL,
+  human.snv.rate.per.base = NULL,
+  new_epi_fwd = NULL,
+  new_epi_bck = NULL
+)
 }
 \arguments{
 \item{new_number_of_states}{integer value for number of states: 3 or 4 (requires phased data)}
 
 \item{human.snv.rate.per.base}{human snv rate per base (usually 20/3e9)}
+
+\item{new_epi_fwd}{numeric value for forward rate (gain of methylation): scales the human SNV rate, e.g. 1e5 times greater than SNV rate per base}
+
+\item{new_epi_bck}{numeric value for backward rate (loss of methylation): scales the human SNV rate}
 }
 \description{
-Change my settings
+Set memento settings
 }
