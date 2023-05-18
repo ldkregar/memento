@@ -111,6 +111,8 @@ dt_annotation[, chr_pos := paste0(Chrom, "_", Pos)]
 setkey(dt_annotation, chr_pos)
 
 tree <- object$tree
+tree$tip.label <- gsub("PD40521_Normal_EM1_", "", tree$tip.label)
+colnames(meth_mtx) <- colnames(unmeth_mtx) <- gsub("PD40521_Normal_EM1_", "", colnames(unmeth_mtx))
 range(tree$edge.length)
 #> [1]  0.0291055 29.3378301
 ```
@@ -131,27 +133,29 @@ tree
 #> Phylogenetic tree with 30 tips and 29 internal nodes.
 #> 
 #> Tip labels:
-#>   PD40521_Normal_EM1_F06, PD40521_Normal_EM1_A09, PD40521_Normal_EM1_A02, PD40521_Normal_EM1_C03, PD40521_Normal_EM1_D03, PD40521_Normal_EM1_H05, ...
+#>   F06, A09, A02, C03, D03, H05, ...
 #> Node labels:
 #>   , 100, 1, 0, 0, 28, ...
 #> 
 #> Rooted; includes branch lengths.
-{plot.phylo(tree)
-nodelabels()
-edgelabels()}
+{par(mar=rep(1, 4))
+  plot.phylo(tree)
+  nodelabels(cex = 0.5)
+  edgelabels(cex = 0.5)}
 ```
 
 <img src="man/figures/README-rescale_poly-1.png" width="100%" />
 
-Everything is overlapping. Let’s see what a tree in which each branch
+Some labels are overlapping. Let’s see what a tree in which each branch
 length is 1 unit long looks like.
 
 ``` r
 unit_tree <- tree
 unit_tree$edge.length <- rep(1, length(unit_tree$edge.length))
-{plot.phylo(unit_tree)
-nodelabels(cex = 0.5)
-edgelabels(cex = 0.5)}
+{par(mar=rep(1, 4))
+  plot.phylo(unit_tree)
+  nodelabels(cex = 0.5)
+  edgelabels(cex = 0.5)}
 ```
 
 <img src="man/figures/README-plot_unit-1.png" width="100%" />
@@ -167,9 +171,19 @@ transitions. To change the settings to a four state model, run
 set_memento_settings(new_number_of_states = 4).
 
 ``` r
-memento_settings()
+settings <- memento_settings()
+settings
 #> $number_of_states
 #> [1] 3
+#> 
+#> $human.snv.rate.per.base
+#> [1] 6.666667e-09
+#> 
+#> $epi_fwd
+#> [1] 1e+05
+#> 
+#> $epi_bck
+#> [1] 1e+05
 #> 
 #> $all_possible_states
 #> [1] 1 2 3
@@ -182,9 +196,6 @@ memento_settings()
 #> 
 #> $state_transition_vec_out
 #> [1] 1 2 3 1 2 3 1 2 3
-#> 
-#> $human.snv.rate.per.base
-#> [1] 6.666667e-09
 #> 
 #> $length_change_comb_list
 #> [1] 11
@@ -335,7 +346,25 @@ Position 1_11 (row 7) is most likely to have changed on branch 46. The
 root starting state is 3 (i.e. 1 or methylated) and branch 46 underwent
 transition 7, which is a change from 1 to 0.5.
 
-Let’s see what these assignments actually look like.
+Let’s see what these assignments actually look like. We’re only
+interested in the best solution so we’ll filter the others out.
+
+``` r
+rate_mtx <- meth_mtx/(meth_mtx + unmeth_mtx)
+
+assignments_best <- assignments_full[rank == 1,]
+
+common_ones <- names(sort(table(assignments_best$branch), decreasing = TRUE)[1:6])
+for(i in 1:length(common_ones)){
+  hm_plot <- plot_heatmap(assignment = common_ones[i],
+                       full_dt = assignments_best,
+                       meth_rate_mtx = rate_mtx,
+                       tree = tree)
+  plot(hm_plot)
+}
+```
+
+<img src="man/figures/README-hm_full-1.png" width="100%" /><img src="man/figures/README-hm_full-2.png" width="100%" /><img src="man/figures/README-hm_full-3.png" width="100%" /><img src="man/figures/README-hm_full-4.png" width="100%" /><img src="man/figures/README-hm_full-5.png" width="100%" /><img src="man/figures/README-hm_full-6.png" width="100%" />
 
 This tree is kind of big though. If we allow more than 3 independent
 changes, computing the priors will be time consuming. To avoid this, we
@@ -381,7 +410,7 @@ for(i in 1:6){
 }
 ```
 
-<img src="man/figures/README-unnamed-chunk-5-1.png" width="800" height="800" style="display: block; margin: auto;" />
+<img src="man/figures/README-unnamed-chunk-5-1.png" width="800" height="700" style="display: block; margin: auto;" />
 Nice. Let’s compute the priors and find changes on each subtree.
 
 ``` r
@@ -420,7 +449,7 @@ head(assignments[[1]])
 #> 6:   1_100    2 0.008051555 17.3:8          17              3            8
 ```
 
-This is a table of changes on each subtree. But branches are numbered
+This is a table of changes on first subtree. But branches are numbered
 relative to the subtree root, so we have to find which branch on the
 full tree they would correspond to.
 
@@ -504,11 +533,68 @@ Nice, we obtained the best two solutions for each site.
 
 Let’s see what these changes look like.
 
-You’ll still need to render `README.Rmd` regularly, to keep `README.md`
-up-to-date. `devtools::build_readme()` is handy for this. You could also
-use GitHub Actions to re-render `README.Rmd` every time you push. An
-example workflow can be found here:
-<https://github.com/r-lib/actions/tree/v1/examples>.
+``` r
+mle_dt_best <- mle_branch_dt[rank == 1,]
 
-In that case, don’t forget to commit and push the resulting figure
-files, so they display on GitHub and CRAN.
+common_ones_split <- names(sort(table(mle_dt_best$branch), decreasing = TRUE)[1:6])
+
+for(i in 1:length(common_ones_split)){
+  hm_plot_split <- plot_heatmap(assignment = common_ones_split[i],
+                       full_dt = mle_dt_best,
+                       meth_rate_mtx = rate_mtx,
+                       tree = tree)
+  plot(hm_plot_split)
+}
+```
+
+<img src="man/figures/README-plot_heatmap_sub-1.png" width="100%" /><img src="man/figures/README-plot_heatmap_sub-2.png" width="100%" /><img src="man/figures/README-plot_heatmap_sub-3.png" width="100%" /><img src="man/figures/README-plot_heatmap_sub-4.png" width="100%" /><img src="man/figures/README-plot_heatmap_sub-5.png" width="100%" /><img src="man/figures/README-plot_heatmap_sub-6.png" width="100%" />
+
+``` r
+sessionInfo()
+#> R version 4.3.0 (2023-04-21)
+#> Platform: x86_64-apple-darwin20 (64-bit)
+#> Running under: macOS Monterey 12.6.1
+#> 
+#> Matrix products: default
+#> BLAS:   /Library/Frameworks/R.framework/Versions/4.3-x86_64/Resources/lib/libRblas.0.dylib 
+#> LAPACK: /Library/Frameworks/R.framework/Versions/4.3-x86_64/Resources/lib/libRlapack.dylib;  LAPACK version 3.11.0
+#> 
+#> locale:
+#> [1] en_US.UTF-8/en_US.UTF-8/en_US.UTF-8/C/en_US.UTF-8/en_US.UTF-8
+#> 
+#> time zone: Europe/London
+#> tzcode source: internal
+#> 
+#> attached base packages:
+#> [1] stats     graphics  grDevices utils     datasets  methods   base     
+#> 
+#> other attached packages:
+#> [1] knitr_1.42        memento_0.1.0     data.table_1.14.8 ape_5.7-1        
+#> 
+#> loaded via a namespace (and not attached):
+#>  [1] fastmatch_1.1-3         gtable_0.3.3            xfun_0.39              
+#>  [4] ggplot2_3.4.2           lattice_0.21-8          numDeriv_2016.8-1.1    
+#>  [7] quadprog_1.5-8          vctrs_0.6.2             tools_4.3.0            
+#> [10] generics_0.1.3          yulab.utils_0.0.6       parallel_4.3.0         
+#> [13] tibble_3.2.1            fansi_1.0.4             highr_0.10             
+#> [16] pkgconfig_2.0.3         Matrix_1.5-4            ggplotify_0.1.0        
+#> [19] scatterplot3d_0.3-44    lifecycle_1.0.3         compiler_4.3.0         
+#> [22] farver_2.1.1            treeio_1.24.0           munsell_0.5.0          
+#> [25] mnormt_2.1.1            combinat_0.0-8          codetools_0.2-19       
+#> [28] ggtree_3.8.0            ggfun_0.0.9             htmltools_0.5.5        
+#> [31] maps_3.4.1              yaml_2.3.7              lazyeval_0.2.2         
+#> [34] pillar_1.9.0            tidyr_1.3.0             MASS_7.3-58.4          
+#> [37] clusterGeneration_1.3.7 iterators_1.0.14        foreach_1.5.2          
+#> [40] nlme_3.1-162            phangorn_2.11.1         tidyselect_1.2.0       
+#> [43] aplot_0.1.10            digest_0.6.31           dplyr_1.1.2            
+#> [46] purrr_1.0.1             labeling_0.4.2          fastmap_1.1.1          
+#> [49] grid_4.3.0              colorspace_2.1-0        expm_0.999-7           
+#> [52] cli_3.6.1               magrittr_2.0.3          patchwork_1.1.2        
+#> [55] optimParallel_1.0-2     utf8_1.2.3              withr_2.5.0            
+#> [58] scales_1.2.1            plotrix_3.8-2           rmarkdown_2.21         
+#> [61] igraph_1.4.2            coda_0.19-4             evaluate_0.20          
+#> [64] phytools_1.5-1          doParallel_1.0.17       gridGraphics_0.5-1     
+#> [67] rlang_1.1.1             Rcpp_1.0.10             glue_1.6.2             
+#> [70] tidytree_0.4.2          rstudioapi_0.14         jsonlite_1.8.4         
+#> [73] R6_2.5.1
+```

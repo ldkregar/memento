@@ -75,6 +75,8 @@ dt_annotation[, chr_pos := paste0(Chrom, "_", Pos)]
 setkey(dt_annotation, chr_pos)
 
 tree <- object$tree
+tree$tip.label <- gsub("PD40521_Normal_EM1_", "", tree$tip.label)
+colnames(meth_mtx) <- colnames(unmeth_mtx) <- gsub("PD40521_Normal_EM1_", "", colnames(unmeth_mtx))
 range(tree$edge.length)
 ```
 
@@ -85,19 +87,21 @@ tree$edge.length <- tree$edge.length*20
 tree_di <- tree
 tree <- di2multi(tree) # convert to polytomy
 tree
-{plot.phylo(tree)
-nodelabels()
-edgelabels()}
+{par(mar=rep(1, 4))
+  plot.phylo(tree)
+  nodelabels(cex = 0.5)
+  edgelabels(cex = 0.5)}
 ```
 
-Everything is overlapping. Let's see what a tree in which each branch length is 1 unit long looks like.
+Some labels are overlapping. Let's see what a tree in which each branch length is 1 unit long looks like.
 
 ```{r plot_unit}
 unit_tree <- tree
 unit_tree$edge.length <- rep(1, length(unit_tree$edge.length))
-{plot.phylo(unit_tree)
-nodelabels(cex = 0.5)
-edgelabels(cex = 0.5)}
+{par(mar=rep(1, 4))
+  plot.phylo(unit_tree)
+  nodelabels(cex = 0.5)
+  edgelabels(cex = 0.5)}
 ```
 
 That's better.
@@ -106,13 +110,14 @@ Here, we'll be working with the three state model. The three states are demethyl
 To change the settings to a four state model, run set_memento_settings(new_number_of_states = 4).
 
 ```{r settings}
-memento_settings()
+settings <- memento_settings()
+settings
 ```
 The table below shows which state each transition starts from (row) and ends at (column).
 
 ```{r echo=FALSE, results='asis'}
 library(knitr)
-states_mtx <- memento_settings()[["state_transition_mtx"]]
+states_mtx <- settings[["state_transition_mtx"]]
 new_names <- paste0(dimnames(states_mtx)[[1]], c(" (0)", " (0.5)", " (1)"))
 dimnames(states_mtx) <- list(new_names, new_names)
 kable(states_mtx, caption = "State transition matrix", "html")
@@ -140,9 +145,22 @@ In the first row, the most likely assignment for this position is "n", which mea
 
 Position 1_11 (row 7) is most likely to have changed on branch 46. The root starting state is 3 (i.e. 1 or methylated) and branch 46 underwent transition 7, which is a change from 1 to 0.5.
 
-Let's see what these assignments actually look like.
+Let's see what these assignments actually look like. We're only interested in the best solution so we'll filter the others out.
 
 ```{r hm_full}
+rate_mtx <- meth_mtx/(meth_mtx + unmeth_mtx)
+
+assignments_best <- assignments_full[rank == 1,]
+
+common_ones <- names(sort(table(assignments_best$branch), decreasing = TRUE)[1:6])
+for(i in 1:length(common_ones)){
+  hm_plot <- plot_heatmap(assignment = common_ones[i],
+                       full_dt = assignments_best,
+                       meth_rate_mtx = rate_mtx,
+                       tree = tree)
+  plot(hm_plot)
+}
+
 
 
 ```
@@ -161,7 +179,7 @@ subtrees <- divide_tree_into_subtrees(full_tree = tree, max_subtree_size = 12)
 
 Yay, this worked. Let's see what these look like.
 
-```{r, fig.asp=0.4, fig.align = "center", out.width = 800, out.height = 800, dpi = 300}
+```{r, fig.asp=0.4, fig.align = "center", out.width = 800, out.height = 700, dpi = 300}
 j <- rep(c(1:3), each = 2)
 par(mfrow = c(3, 2),
     mar = c(1, 1, 1, 1))
@@ -198,7 +216,7 @@ assignments <- lapply(priors_p_subtree,
 head(assignments[[1]])
 ```
 
-This is a table of changes on each subtree. But branches are numbered relative to the subtree root, so we have to find which branch on the full tree they would correspond to.
+This is a table of changes on first subtree. But branches are numbered relative to the subtree root, so we have to find which branch on the full tree they would correspond to.
 
 ```{r}
 # find candidate changes on the full tree
@@ -230,9 +248,25 @@ Nice, we obtained the best two solutions for each site.
 Let's see what these changes look like.
 
 ```{r plot_heatmap_sub}
+mle_dt_best <- mle_branch_dt[rank == 1,]
 
+common_ones_split <- names(sort(table(mle_dt_best$branch), decreasing = TRUE)[1:6])
+
+for(i in 1:length(common_ones_split)){
+  hm_plot_split <- plot_heatmap(assignment = common_ones_split[i],
+                       full_dt = mle_dt_best,
+                       meth_rate_mtx = rate_mtx,
+                       tree = tree)
+  plot(hm_plot_split)
+}
+```
+```{r eval=FALSE, echo = FALSE}
+# You'll still need to render `README.Rmd` regularly, to keep `README.md` up-to-date. `devtools::build_readme()` is handy for this. You could also use GitHub Actions to re-render `README.Rmd` every time you push. An example workflow can be found here: <https://github.com/r-lib/actions/tree/v1/examples>.
+# 
+# In that case, don't forget to commit and push the resulting figure files, so they display on GitHub and CRAN.
 ```
 
-You'll still need to render `README.Rmd` regularly, to keep `README.md` up-to-date. `devtools::build_readme()` is handy for this. You could also use GitHub Actions to re-render `README.Rmd` every time you push. An example workflow can be found here: <https://github.com/r-lib/actions/tree/v1/examples>.
+```{r}
+sessionInfo()
+```
 
-In that case, don't forget to commit and push the resulting figure files, so they display on GitHub and CRAN.
