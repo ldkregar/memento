@@ -10,5 +10,8 @@
 #' @importFrom data.table .N .I ':=' tstrsplit setkey data.table
 #' @importFrom data.table data.table
 #' @importFrom data.table setkey
+#' @importFrom dplyr full_join
+#' @importFrom ggplot2 aes
+#' @importFrom ggplot2 element_text
 ## usethis namespace: end
 NULL
