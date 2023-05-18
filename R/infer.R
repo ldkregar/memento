@@ -545,8 +545,8 @@ find_most_likely_set <- function(dt_pre,
                                  ro = NA,
                                  gamma = NA,
                                  delta = NA,
-                                 epi_fwd = 1e5,
-                                 epi_bck = 1e5,
+                                 epi_fwd = NULL,
+                                 epi_bck = NULL,
                                  fraction_estimate = 1,
                                  n_top_br = 1,
                                  dt_anno = NULL,
@@ -574,8 +574,15 @@ find_most_likely_set <- function(dt_pre,
   totsnvs=sum(full_tree$edge.length)
   tottime=totsnvs/20
   weighted_branch_lenghts <- tottime* full_tree$edge.length/sum(full_tree$edge.length)
-  epi_mut_rate_fwd <- epi_fwd*the$human.snv.rate.per.base #human.epi.rate.per.cpg
-  epi_mut_rate_bck <- epi_bck*the$human.snv.rate.per.base #human.epi.rate.per.cpg
+  if(is.null(epi_fwd) & is.null(epi_bck)){
+    epi_mut_rate_fwd <- the$epi_fwd*the$human.snv.rate.per.base #human.epi.rate.per.cpg
+    epi_mut_rate_bck <- the$epi_bck*the$human.snv.rate.per.base #human.epi.rate.per.cpg
+  }else{
+    cat("Using custom forward and backward transition rates.\n")
+    epi_mut_rate_fwd <- epi_fwd*the$human.snv.rate.per.base #human.epi.rate.per.cpg
+    epi_mut_rate_bck <- epi_bck*the$human.snv.rate.per.base #human.epi.rate.per.cpg
+  }
+
 
   if(the$number_of_states == 2){
     p2_list <- lapply(weighted_branch_lenghts,
