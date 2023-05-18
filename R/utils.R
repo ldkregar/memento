@@ -282,4 +282,71 @@ get_rate <- function(branch,
   return(rate_result)
 }
 
+generate_tree_children_matrix <- function(tree_){
+  # tips
+  children <- lapply(tree_$edge[,2], function(node1){
+    desc <- phangorn::Descendants(tree_, node1, type = c("tips"))[[1]]
+    vec <- rep(0, length(tree_$tip.label))
+    vec[desc] <- 1
+    return(vec)
+  })
+  chld_mtx <- do.call("rbind", children)
+
+  # branches
+  branch_children <- lapply(tree_$edge[,2], function(node1){
+    desc2 <- phangorn::Descendants(tree_, node1, type = c("all"))
+    desc_br <- match(desc2, tree_$edge[,2])
+    self <- which(tree_$edge[,2] == node1)
+    all_affected <- unique(c(desc_br, self))
+    vec2 <- rep(0, nrow(tree_$edge))
+    vec2[all_affected] <- 1
+    return(vec2)
+  })
+  branch_mtx <- do.call("rbind", branch_children)
+
+  branch_children_noself <- lapply(tree_$edge[,2], function(node1){
+    desc2 <- phangorn::Descendants(tree_, node1, type = c("all"))
+    desc_br <- match(desc2, tree_$edge[,2])
+    vec2 <- rep(0, nrow(tree_$edge))
+    vec2[desc_br] <- 1
+    return(vec2)
+  })
+  branch_mtx_noself <- do.call("rbind", branch_children_noself)
+
+  branch_children_only <- lapply(tree_$edge[,2], function(node1){
+    desc2 <- phangorn::Descendants(tree_, node1, type = c("all"))
+    desc_br <- match(desc2, tree_$edge[,2])
+    vec2 <- rep(0, nrow(tree_$edge))
+    self <- which(tree_$edge[,2] == node1)
+    only_kids <- unique(setdiff(desc_br, self))
+    vec2[only_kids] <- 1
+    return(vec2)
+  })
+  branch_children_only_mtx <- do.call("rbind", branch_children_only)
+
+  return(list("tips"=chld_mtx,
+              "branches" = branch_mtx,
+              "branches_noself" = branch_mtx_noself,
+              "branch_children_only" = branch_children_only_mtx))
+}
+
+generate_expected_tip_states <- function(ss, changed_branches, change_types, tree){
+  children_matrices <- generate_tree_children_matrix(tree_ = tree)
+  tip_child_mtx <- children_matrices$tips
+
+  result <- rep(ss, length(tree$tip.label))
+
+  if(changed_branches != "n"){
+    changed_branches_split <- as.numeric(strsplit(changed_branches, "_")[[1]])
+    change_types_split <- as.numeric(strsplit(change_types, "_")[[1]])
+    for(i in 1:length(changed_branches_split)){
+      cur_branch <- changed_branches_split[i]
+      cur_change <- change_types_split[i]
+      new_state <- which(the$state_transition_mtx == cur_change, arr.ind = TRUE)[2]
+      child_vector <- tip_child_mtx[cur_branch,]
+      result[as.logical(child_vector)] <- new_state
+    }
+  }
+  return(result)
+}
 
