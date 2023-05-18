@@ -66,56 +66,7 @@ add_mtx_to_change_comb_file <- function(n_changes_){
   return(additional_matrix)
 }
 
-generate_tree_children_matrix <- function(tree_){
-  # tips
-  children <- lapply(tree_$edge[,2], function(node1){
-    desc <- phangorn::Descendants(tree_, node1, type = c("tips"))[[1]]
-    vec <- rep(0, length(tree_$tip.label))
-    vec[desc] <- 1
-    return(vec)
-  })
-  chld_mtx <- do.call("rbind", children)
-
-  # branches
-  branch_children <- lapply(tree_$edge[,2], function(node1){
-    desc2 <- phangorn::Descendants(tree_, node1, type = c("all"))
-    desc_br <- match(desc2, tree_$edge[,2])
-    self <- which(tree_$edge[,2] == node1)
-    all_affected <- unique(c(desc_br, self))
-    vec2 <- rep(0, nrow(tree_$edge))
-    vec2[all_affected] <- 1
-    return(vec2)
-  })
-  branch_mtx <- do.call("rbind", branch_children)
-
-  branch_children_noself <- lapply(tree_$edge[,2], function(node1){
-    desc2 <- phangorn::Descendants(tree_, node1, type = c("all"))
-    desc_br <- match(desc2, tree_$edge[,2])
-    vec2 <- rep(0, nrow(tree_$edge))
-    vec2[desc_br] <- 1
-    return(vec2)
-  })
-  branch_mtx_noself <- do.call("rbind", branch_children_noself)
-
-  branch_children_only <- lapply(tree_$edge[,2], function(node1){
-    desc2 <- phangorn::Descendants(tree_, node1, type = c("all"))
-    desc_br <- match(desc2, tree_$edge[,2])
-    vec2 <- rep(0, nrow(tree_$edge))
-    self <- which(tree_$edge[,2] == node1)
-    only_kids <- unique(setdiff(desc_br, self))
-    vec2[only_kids] <- 1
-    return(vec2)
-  })
-  branch_children_only_mtx <- do.call("rbind", branch_children_only)
-
-  return(list("tips"=chld_mtx,
-              "branches" = branch_mtx,
-              "branches_noself" = branch_mtx_noself,
-              "branch_children_only" = branch_children_only_mtx))
-}
-
 get_outcomes_per_change <- function(change_combination_list_,
-                                    # change_combination_list_ = change_combination_list
                                     tree_,
                                     previous_edges,
                                     changes_on_branch,
@@ -305,8 +256,8 @@ generate_genotypes <- function(a_t,
 #' }
 generate_priors <- function(full_tree,
                             all_trees = NULL,
-                            epi_fwd = 1e5,
-                            epi_bck = 1e5,
+                            epi_fwd = NULL,
+                            epi_bck = NULL,
                             m = 2,
                             verbose = TRUE){
   if(is.null(all_trees)){
@@ -332,9 +283,14 @@ generate_priors <- function(full_tree,
 
     ##  rates expressed as per cpg per year
     ##  Mutation rates are human mutation rate = 20/3e9 per base
-
-    epi_mut_rate_fwd_ <- epi_fwd*the$human.snv.rate.per.base
-    epi_mut_rate_bck_ <- epi_bck*the$human.snv.rate.per.base
+    if(is.null(epi_fwd) & is.null(epi_bck)){
+      epi_mut_rate_fwd_ <- the$epi_fwd*the$human.snv.rate.per.base #human.epi.rate.per.cpg
+      epi_mut_rate_bck_ <- the$epi_bck*the$human.snv.rate.per.base #human.epi.rate.per.cpg
+    }else{
+      cat("Using custom forward and backward transition rates.\n")
+      epi_mut_rate_fwd_ <- epi_fwd*the$human.snv.rate.per.base #human.epi.rate.per.cpg
+      epi_mut_rate_bck_ <- epi_bck*the$human.snv.rate.per.base #human.epi.rate.per.cpg
+    }
 
     if(the$number_of_states == 2){
       p2_list <- lapply(weighted_branch_lenghts,
