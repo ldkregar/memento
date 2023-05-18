@@ -1,6 +1,8 @@
 the <- new.env(parent = emptyenv())
 the$number_of_states <- 3
 the$human.snv.rate.per.base=20/3e9
+the$epi_fwd = 1e5
+the$epi_bck = 1e5
 the$all_possible_states <- c(1:the$number_of_states)
 the$state_transition_mtx <- matrix(1:the$number_of_states**2,
                                    the$number_of_states,
@@ -67,38 +69,52 @@ names(the$change_combs_list) <- as.character(0:(length(the$change_combs_list)-1)
 #' @export
 memento_settings <- function() {
   return(list("number_of_states" = the$number_of_states,
+              "human.snv.rate.per.base" = the$human.snv.rate.per.base,
+              "epi_fwd" = the$epi_fwd,
+              "epi_bck" = the$epi_bck,
               "all_possible_states" = the$all_possible_states,
               "state_transition_mtx" = the$state_transition_mtx,
               "state_transition_vec_out" = the$state_transition_vec_out,
-              "human.snv.rate.per.base" = the$human.snv.rate.per.base,
               "length_change_comb_list" = length(the$change_combs_list)))
 }
 
-#' Change my settings
+#' Set memento settings
 #' @param new_number_of_states integer value for number of states: 3 or 4 (requires phased data)
 #' @param human.snv.rate.per.base human snv rate per base (usually 20/3e9)
+#' @param new_epi_fwd numeric value for forward rate (gain of methylation): scales the human SNV rate, e.g. 1e5 times greater than SNV rate per base
+#' @param new_epi_bck numeric value for backward rate (loss of methylation): scales the human SNV rate
 #' @export
-set_memento_settings <- function(new_number_of_states, human.snv.rate.per.base = NULL){
+set_memento_settings <- function(new_number_of_states = NULL,
+                                 human.snv.rate.per.base = NULL,
+                                 new_epi_fwd = NULL,
+                                 new_epi_bck = NULL){
   old_num_states <- the$number_of_states
+  if(!is.null(new_number_of_states)){
+    the$number_of_states <- new_number_of_states
+    the$all_possible_states <- c(1:the$number_of_states)
+    the$state_transition_mtx <- matrix(1:the$number_of_states**2,
+                                       the$number_of_states,
+                                       the$number_of_states,
+                                       byrow = TRUE)
+    colnames(the$state_transition_mtx) <- rownames(the$state_transition_mtx) <- as.character(1:the$number_of_states)
+
+    the$state_transition_vec_out <- rep(c(1:the$number_of_states), the$number_of_states)
+
+    the$change_combs_list <- lapply(c(0:10), function(nc){
+      cc <- get_change_combinations_4s(nc)
+      return(cc)
+    })
+    names(the$change_combs_list) <- as.character(0:(length(the$change_combs_list)-1))
+  }
+
   if(!is.null(human.snv.rate.per.base)){
     the$human.snv.rate.per.base <- human.snv.rate.per.base
   }
-  the$number_of_states <- new_number_of_states
-
-  the$all_possible_states <- c(1:the$number_of_states)
-  the$state_transition_mtx <- matrix(1:the$number_of_states**2,
-                                     the$number_of_states,
-                                     the$number_of_states,
-                                     byrow = TRUE)
-  colnames(the$state_transition_mtx) <- rownames(the$state_transition_mtx) <- as.character(1:the$number_of_states)
-
-  the$state_transition_vec_out <- rep(c(1:the$number_of_states), the$number_of_states)
-
-  the$change_combs_list <- lapply(c(0:10), function(nc){
-    cc <- get_change_combinations_4s(nc)
-    return(cc)
-  })
-  names(the$change_combs_list) <- as.character(0:(length(the$change_combs_list)-1))
-
+  if(!is.null(new_epi_fwd)){
+    the$epi_fwd <- new_epi_fwd
+  }
+  if(!is.null(new_epi_bck)){
+    the$epi_bck <- new_epi_bck
+  }
   invisible(old_num_states)
 }
