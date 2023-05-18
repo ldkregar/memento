@@ -265,7 +265,9 @@ generate_priors <- function(full_tree,
   }
 
   if(is.null(full_tree)) stop("Must provide full tree")
-
+  if(!all(grepl("[[:alpha:]]", full_tree$tip.label))){
+    stop("Not all tip labels contain a character, rename tip labels so that they contain a character.")
+  }
   priors_per_subtree <- vector("list", length = length(all_trees))
 
   names(priors_per_subtree) <- names(all_trees)
