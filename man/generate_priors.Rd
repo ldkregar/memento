@@ -5,15 +5,17 @@
 \title{Generate priors for each tree}
 \usage{
 generate_priors(
-  all_trees,
+  full_tree,
+  all_trees = NULL,
   epi_fwd = 1e+05,
   epi_bck = 1e+05,
   m = 2,
-  full_tree = NULL,
   verbose = TRUE
 )
 }
 \arguments{
+\item{full_tree}{"phylo" object - entire tree}
+
 \item{all_trees}{list of "phylo" objects}
 
 \item{epi_fwd}{numeric value for forward rate (gain of methylation)}
@@ -21,8 +23,6 @@ generate_priors(
 \item{epi_bck}{numeric value for backward rate (loss of methylation)}
 
 \item{m}{integer value for number of spontaneous changes on a tree}
-
-\item{full_tree}{"phylo" object - entire tree}
 
 \item{verbose}{logical}
 }
