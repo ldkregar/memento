@@ -32,7 +32,12 @@ compute_probabilities <- function(priors_per_tree,
                                   n_top_br = 2,
                                   hash_name = NA,
                                   current_comb = NA){
-
+  if(length(priors_per_tree) == 1){
+    only_one <- TRUE
+    priors_per_tree <- priors_per_tree[[1]]
+  }else{
+    only_one <- FALSE
+  }
   branch_lengths <- priors_per_tree$priors
   one_tree <- priors_per_tree$tree_for_priors
   genotype_vectors <- priors_per_tree$genotype_vectors
@@ -259,6 +264,23 @@ compute_probabilities <- function(priors_per_tree,
   dt_sol_molten[, starting_state := as.numeric(starting_state)]
   dt_new <- data.table::merge.data.table(dt_prob_molten, dt_sol_molten, by = c("chr_pos", "rank"))
   dt_new[, rank := as.numeric(rank)]
+
+  if(only_one){
+    list_rate <- lapply(dt_new$branch,
+                      get_rate,
+                      priors_w_idx = branch_lengths,
+                      full_tree = one_tree)
+    names(list_rate) <- dt_new$chr_pos
+
+    rates_df <- do.call("rbind", list_rate)
+    rates_df2 <- data.table::data.table("chr_pos" = rownames(rates_df),
+                                        "rank" = dt_new$rank,
+                                        rates_df)
+    data.table::setkey(dt_new, chr_pos, rank)
+    dt_new2 <- data.table::merge.data.table(dt_new, rates_df2, by = c("chr_pos", "rank"))
+    dt_new <- dt_new2
+  }
+
   return(dt_new)
 }
 
