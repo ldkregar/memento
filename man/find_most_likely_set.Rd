@@ -2,7 +2,7 @@
 % Please edit documentation in R/infer.R
 \name{find_most_likely_set}
 \alias{find_most_likely_set}
-\title{Title}
+\title{Find the most likely set of changed branches}
 \usage{
 find_most_likely_set(
   dt_pre,
@@ -60,7 +60,7 @@ find_most_likely_set(
 data.table of final assignments
 }
 \description{
-Title
+Find the most likely set of changed branches
 }
 \examples{
 \dontrun{
