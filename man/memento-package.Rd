@@ -6,7 +6,7 @@
 \alias{memento-package}
 \title{memento: Infer CpG Methylation States On A Phylogeny}
 \description{
-Input binomially distributed phenotype data (e.g. CpG methylation read counts) of tips and their phylogeny to infer historical changes.
+Input binomially distributed phenotype data (e.g. CpG methylation read counts) of tips and their phylogeny to infer heritable changes.
 }
 \author{
 \strong{Maintainer}: Lori Kregar \email{ld18@sanger.ac.uk}
