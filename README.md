@@ -47,6 +47,10 @@ Priors assume x.
 You can install the development version of Memento from
 [GitHub](https://github.com/) with:
 
+NB: This library is under active development so some unexpected
+behaviour is to be expected. Drop me an email if you require help, I’m
+at LD18 at sanger dot ac dot uk.
+
 ``` r
 # install.packages("devtools")
 devtools::install_github("ldkregar/memento")
