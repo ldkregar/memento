@@ -26,8 +26,7 @@ library(ape)
 library(data.table)
 library(memento)
 
-data("sim_object")
-object <- sim_object
+data("object")
 str(object)
 ```
 
@@ -114,9 +113,9 @@ Great, we have found state changes for each site. The columns only_branch, start
 
 Columns that start with "ss_" contain the sum of branch lengths, which start in each possible state (here 1, 2 or 3, which correspond to demethylated, half-methylated and methylated, respectively), while columns that start with "nt_" show the number of transitions of each type that occurred in that assignment. These columns are used for estimating rates.
 
-In the first row, the most likely assignment for this position is "n", which means "no change" so the root and tip states are the same. The starting state is inferred to be in state 2 (half-methylated) and branch changes are of type 5 (the transition is from state 0.5 to 0.5). This assignment has a probability of 55%. The second row reports the second most likely assignment for this position and has a probability of 26%.
+In the first row, the most likely assignment for this position is "n", which means "no change" so the root and tip states are the same. The starting state is inferred to be in state 2 (half-methylated) and branch changes are of type 5 (the transition is from state 0.5 to 0.5). This assignment has a probability of 80%. The second row reports the second most likely assignment for this position and has a probability of 7%.
 
-Position 1_11 (row 7) is most likely to have changed on branch 46. The root starting state is 3 (i.e. 1 or methylated) and branch 46 underwent transition 7, which is a change from 1 to 0.
+Position 1_11 (row 7) is most likely to have changed on branch 13 and 46. The root starting state is 3 (i.e. 1 or methylated) and both branches underwent transition 7, which is a change from 1 to 0.
 
 Let's see what these assignments actually look like. We're only interested in the best solution so we'll filter the others out.
 
@@ -125,23 +124,23 @@ rate_mtx <- meth_mtx/(meth_mtx + unmeth_mtx) # compute methylation rate matrix: 
 
 assignments_best <- assignments_full[rank == 1,]
 
-# Let's find some changes which occurred on non-terminal edges
-internal_edges <- which(tree$edge[,2] > tree$edge[1,1])
-
-internal_edges_regex <- paste0("^", as.character(internal_edges), "_|", "_", as.character(internal_edges), "\\.|^", as.character(internal_edges), "\\.")
-
-contains_internal <- lapply(internal_edges_regex, function(x){
-  y <- grep(x, assignments_best$branch, value = TRUE)
-  if(length(y) == 0){
-    z <- NULL
-  }else{
-    z <- y
-  }
-  return(z)
-})
-contains_internal <- contains_internal[!sapply(contains_internal,is.null)]
-
-some_assignments <- c("n.3:9", "n.1:1", "13.2:6", "13.2:4", "13_17.1:2_3")
+# # Let's find some changes which occurred on non-terminal edges
+# internal_edges <- which(tree$edge[,2] > tree$edge[1,1])
+# 
+# internal_edges_regex <- paste0("^", as.character(internal_edges), "_|", "_", as.character(internal_edges), "\\.|^", as.character(internal_edges), "\\.")
+# 
+# contains_internal <- lapply(internal_edges_regex, function(x){
+#   y <- grep(x, assignments_best$branch, value = TRUE)
+#   if(length(y) == 0){
+#     z <- NULL
+#   }else{
+#     z <- y
+#   }
+#   return(z)
+# })
+# contains_internal <- contains_internal[!sapply(contains_internal,is.null)]
+# some_sites <- c("1_19", "1_20", "1_25", "1_54", "1_95")
+some_assignments <- c("n.3:9", "35_46.3:8_8", "13_42.2:4_6", "25_28.2:4_6", "13_29.2:4_6", "29_38.3:7_7")
 
 # common_ones <- names(sort(table(assignments_best$branch), decreasing = TRUE)[1:6])
 for(i in 1:length(some_assignments)){
@@ -156,7 +155,7 @@ for(i in 1:length(some_assignments)){
 
 ### Advanced case 1: the three state model on the split phylogeny
 
-This tree is kind of big. If we allow more than 3 independent changes, computing the priors will be time (and memory) consuming. To avoid this, we can split the tree into smaller subtrees, and find changes to each subtree. Allowing 3 changes per subtree across 2 subtrees, we can find up to 6 changes on the full tree (2 subtrees * 3 changes per subtree). The function divide_tree_into_subtrees() takes the complete tree and finds internal nodes, which have an appropriate number of descendants (appropriate meaning within size limits as set by the user), and returns their subtrees along with the root tree, which is the top level tree (its root is the root of the complete tree) that will now have new tips that represent roots of subtrees. The total number of branches across all subtrees will equal the number of branches in the complete phylogeny.
+In some heatmaps, it seems like additional changes occurred but since the settings only allow up to 2 changes, these aren't picked up. This tree has 30 branches, which is quite a lot, so if we allow more than 3 independent changes, computing the priors will be time (and memory) consuming. To avoid this, we can split the tree into smaller subtrees, and find changes to each subtree. Allowing 3 changes per subtree across 2 subtrees, we can find up to 6 changes on the full tree (2 subtrees * 3 changes per subtree). The function divide_tree_into_subtrees() takes the complete tree and finds internal nodes, which have an appropriate number of descendants (appropriate meaning within size limits set by the user), and returns their subtrees along with the root tree, which is the top level tree (its root is the root of the complete tree) that will now have new tips that represent roots of subtrees. The total number of branches across all subtrees will equal the number of branches in the complete phylogeny.
 
 ```{r, error=TRUE}
 subtrees <- divide_tree_into_subtrees(full_tree = tree, max_subtree_size = 15)
@@ -237,16 +236,24 @@ head(mle_branch_dt)
 
 Nice, we obtained the best two solutions for each site. 
 
-Let's see what these changes look like.
+Let's see what these changes look like and compare new assignments to the original ones made on the full tree.
 
 ```{r plot_heatmap_sub}
 mle_dt_best <- mle_branch_dt[rank == 1,]
 
-common_ones_split <- names(sort(table(mle_dt_best$branch), decreasing = TRUE)[1:6])
+same_sites_as_before <- assignments_best[branch %in% some_assignments][["chr_pos"]] # filter to plotted positions
+mle_subset <- mle_dt_best[chr_pos %in% same_sites_as_before]
+mle_subset[, .(probability, branch, only_branch, starting_state, branch_state, n_assignments_mle)]
+```
 
-for(i in 1:length(common_ones_split)){
-  hm_plot_split <- plot_heatmap(assignment = common_ones_split[i],
-                       full_dt = mle_dt_best,
+We found some additional changes! Let's plot these.
+
+```{r }
+same_sites_new_assignment <- names(sort(table(mle_subset[["branch"]]), decreasing = TRUE))
+
+for(i in 1:length(same_sites_new_assignment)){
+  hm_plot_split <- plot_heatmap(assignment = same_sites_new_assignment[i],
+                       full_dt = mle_subset,
                        meth_rate_mtx = rate_mtx,
                        tree = tree)
   plot(hm_plot_split)
