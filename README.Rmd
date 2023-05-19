@@ -28,7 +28,7 @@ Since Memento relies on exhaustive search, generating expected tip states for ma
 
 Memento also works on phased data and can infer whether a change happened on maternal and/or paternal chromosome. This is referred to as the 4 state model.
 
-Since Memento computes probabilities for a large set of possible tip states, it can also return second, third ... best solution for a given CpG site.
+Since Memento computes probabilities for a large set of possible tip states, it can also return second, third etc. best solution for a given CpG site.
 
 Memento also contains several visualisation functions to plot the found changes.
 
