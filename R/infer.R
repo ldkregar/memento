@@ -32,6 +32,7 @@ compute_probabilities <- function(priors_per_tree,
                                   n_top_br = 2,
                                   hash_name = NA,
                                   current_comb = NA){
+  chr_pos = branch = only_branch = starting_state = rank = n_assignments = NULL
   if(length(priors_per_tree) == 1){
     only_one <- TRUE
     priors_per_tree <- priors_per_tree[[1]]
@@ -259,7 +260,7 @@ compute_probabilities <- function(priors_per_tree,
   dt_sol_molten <- data.table::melt(dt_solution, id.vars = c("chr_pos"),
                                        value.name = "branch",
                                        variable.name = "rank")
-  chr_pos = branch = starting_state = NULL
+
   dt_sol_molten[, c("only_branch", "starting_state", "branch_state") := tstrsplit(branch, "\\.|:")]
   dt_sol_molten[, starting_state := as.numeric(starting_state)]
   dt_new <- data.table::merge.data.table(dt_prob_molten, dt_sol_molten, by = c("chr_pos", "rank"))
@@ -280,7 +281,14 @@ compute_probabilities <- function(priors_per_tree,
     dt_new2 <- data.table::merge.data.table(dt_new, rates_df2, by = c("chr_pos", "rank"))
     dt_new <- dt_new2
   }
-
+  dt_new[, n_assignments := sapply(only_branch, function(x){
+    y <- strsplit(x, "_")[[1]]
+    if(all(y == "n")){
+      return(0)
+    }else{
+      return(length(y))
+    }
+  })]
   return(dt_new)
 }
 
@@ -512,7 +520,7 @@ get_mle <- function(branches,
 }
 
 
-#' Title
+#' Find the most likely set of changed branches
 #'
 #' @param dt_pre data.table of assignments
 #' @param full_tree "phylo" object of full tree
