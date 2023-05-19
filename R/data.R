@@ -1,8 +1,8 @@
 #' Simulated object
 #'
-#' Obtained using Nick's run_sim_infer_example on KX001 (tree downsampled to 30 tips)
+#' Obtained using Nick's run_sim_infer_example on KX001 (tree downsampled to 30 tips, rate = 0.001)
 #'
-#' @format ## `sim_object`
+#' @format ## `object`
 #' A list of items
 #' \describe{
 #'   \item{details}{data.frame}
@@ -14,4 +14,4 @@
 #'   \item{UR}{matrix of unmethylated reads on the reverse strand}
 #'   \item{UF}{matrix of unmethylated reads on the forward strand}
 #' }
-"sim_object"
+"object"
