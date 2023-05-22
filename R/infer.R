@@ -534,6 +534,7 @@ get_mle <- function(branches,
 #' @param delta numeric value for proportion of methylated reads if inferred state is unmethylated
 #' @param epi_fwd numeric value for forward rate (gain of methylation)
 #' @param epi_bck numeric value for backward rate (loss of methylation)
+#' @param Q_mtx Q matrix
 #' @param fraction_estimate numeric value for how many sites to estimate MLE for
 #' @param n_top_br integer: number of top branches to return
 #' @param dt_anno data.table of site annotations, where chr_pos is key
@@ -560,6 +561,7 @@ find_most_likely_set <- function(dt_pre,
                                  delta = NA,
                                  epi_fwd = NULL,
                                  epi_bck = NULL,
+                                 Q_mtx = NULL,
                                  fraction_estimate = 1,
                                  n_top_br = 1,
                                  dt_anno = NULL,
@@ -587,6 +589,7 @@ find_most_likely_set <- function(dt_pre,
   totsnvs=sum(full_tree$edge.length)
   tottime=totsnvs/20
   weighted_branch_lenghts <- tottime* full_tree$edge.length/sum(full_tree$edge.length)
+
   if(is.null(epi_fwd) & is.null(epi_bck)){
     epi_mut_rate_fwd <- the$epi_fwd*the$human.snv.rate.per.base #human.epi.rate.per.cpg
     epi_mut_rate_bck <- the$epi_bck*the$human.snv.rate.per.base #human.epi.rate.per.cpg
@@ -596,39 +599,41 @@ find_most_likely_set <- function(dt_pre,
     epi_mut_rate_bck <- epi_bck*the$human.snv.rate.per.base #human.epi.rate.per.cpg
   }
 
-
-  if(the$number_of_states == 2){
-    p2_list <- lapply(weighted_branch_lenghts,
-                      getP2,
-                      epi_mut_rate_bck = epi_mut_rate_bck,
-                      epi_mut_rate_fwd = epi_mut_rate_fwd)
-    p2 <- lapply(p2_list, function(x){
-      y <- as.vector(t(x))
-      return(y)
-    })
-    priors_per_branch <- log(do.call("rbind", p2))
-  }else if(the$number_of_states == 3){
-    p3_list <- lapply(weighted_branch_lenghts,
-                      getP3,
-                      epi_mut_rate_bck = epi_mut_rate_bck,
-                      epi_mut_rate_fwd = epi_mut_rate_fwd)
-    p3 <- lapply(p3_list, function(x){
-      y <- as.vector(t(x))
-      return(y)
-    })
-    priors_per_branch <- log(do.call("rbind", p3))
-  }else if(the$number_of_states == 4){
-    p4_list <- lapply(weighted_branch_lenghts,
-                      getP4,
-                      epi_mut_rate_bck = epi_mut_rate_bck,
-                      epi_mut_rate_fwd = epi_mut_rate_fwd)
-    p4 <- lapply(p4_list, function(x){
-      y <- as.vector(t(x))
-      return(y)
-    })
-    priors_per_branch <- log(do.call("rbind", p4))
+  if(is.null(Q_mtx)){
+    Q_mtx <- the$Q
+  }else{
+    cat("Using custom Q matrix")
   }
-  #priors_per_branch_full <- priors_per_branch
+
+  if(the$useQ){
+    p_list <- lapply(weighted_branch_lenghts,
+                     getP,
+                     Q = Q_mtx)
+  }else{
+    if(the$number_of_states == 2){
+      p_list <- lapply(weighted_branch_lenghts,
+                       getP2,
+                       epi_mut_rate_bck = epi_mut_rate_bck,
+                       epi_mut_rate_fwd = epi_mut_rate_fwd)
+    }else if(the$number_of_states == 3){
+      p_list <- lapply(weighted_branch_lenghts,
+                       getP3,
+                       epi_mut_rate_bck = epi_mut_rate_bck,
+                       epi_mut_rate_fwd = epi_mut_rate_fwd)
+    }else if(the$number_of_states == 4){
+      p_list <- lapply(weighted_branch_lenghts,
+                       getP4,
+                       epi_mut_rate_bck = epi_mut_rate_bck,
+                       epi_mut_rate_fwd = epi_mut_rate_fwd)
+    }
+  }
+
+  p_vectors <- lapply(p_list, function(x){
+    y <- as.vector(t(x))
+    return(y)
+  })
+  priors_per_branch <- log(do.call("rbind", p_vectors))
+
   if(fraction_estimate < 1){
     warning(sprintf("You are only computing MLE on the first %i%% of sites, sorted from easiest.", round(fraction_estimate*100, digits = 0)))
   }
