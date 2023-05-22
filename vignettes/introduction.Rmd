@@ -51,11 +51,6 @@ tree <- object$tree
 tree$tip.label <- gsub("PD40521_Normal_EM1_", "", tree$tip.label)
 colnames(meth_mtx) <- colnames(unmeth_mtx) <- gsub("PD40521_Normal_EM1_", "", 
                                                    colnames(unmeth_mtx))
-
-  # if(!("Chrom" %in% colnames(full_dt_subset))){
-  #   full_dt_subset <- full_dt_subset[, list("Chrom", "Pos") := tstrsplit(chr_pos, "_")]
-  # }
-
 range(tree$edge.length)
 ```
 
@@ -109,7 +104,8 @@ knitr::kable(states_mtx, position = "left", align = "ccc", "html") #%>%
 Let's find changes. First we compute the priors, which are the probabilities of each expected tip state vector. We set m to 2, meaning we will find up to 2 independent changes on the phylogeny. We set n_top_br to 2, meaning we ask for best two assignments to be returned.
 
 ```{r find_changes_full}
-priors <- generate_priors(full_tree = tree, m = 2)
+priors <- generate_priors(full_tree = tree, 
+                          m = 2)
 # find changes
 assignments_full <- compute_probabilities(priors_per_tree = priors,
                                      m_reads_matrix = meth_mtx,
@@ -256,7 +252,7 @@ for(i in 1:length(same_sites_new_assignment)){
 }
 ```
 
-These look much better than those on the full tree. We picked up some additional changes and the new probabilities of assignments are higher too.
+These look better than assignments made using the full tree. We picked up some additional changes and the new probabilities of assignments are higher too.
 
 
 ```{r}
