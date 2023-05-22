@@ -22,6 +22,6 @@ A list of items
 object
 }
 \description{
-Obtained using Nick's run_sim_infer_example on KX001 (tree downsampled to 30 tips, rate = 0.001)
+Obtained using Nick's run_sim_infer_example on KX001 (tree downsampled to 30 tips, rate = 0.001, depth = 20)
 }
 \keyword{datasets}
