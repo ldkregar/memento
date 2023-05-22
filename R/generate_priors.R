@@ -21,6 +21,14 @@ getP4 = function(t, epi_mut_rate_bck, epi_mut_rate_fwd){
   out
 }
 
+# getP4_new = function(t, Q){
+#   P = getP(t, Q)
+#   out = matrixcalc::direct.prod(P, P)
+#   colnames(out) = c("00", "01", "10", "11")
+#   rownames(out) = colnames(out)
+#   out
+# }
+
 getP3=function(t, epi_mut_rate_bck, epi_mut_rate_fwd){
   out = matrix(NA, ncol = 3, nrow = 3)
   p00 = P00(t, epi_mut_rate_bck, epi_mut_rate_fwd)
@@ -44,6 +52,8 @@ getP2 = function(t, epi_mut_rate_bck, epi_mut_rate_fwd){
   p11 = 1 - p10
   matrix(c(p00, p10, p01, p11), ncol = 2, nrow = 2)
 }
+
+getP <- function(t,Q) as.matrix(expm::expm(t*Q))
 
 even <- function(x) base::subset(x, x %% 2 == 0)
 
@@ -244,6 +254,7 @@ generate_genotypes <- function(a_t,
 #' @param m integer value for number of spontaneous changes on a tree
 #' @param full_tree "phylo" object - entire tree
 #' @param verbose logical
+#' @param Q_mtx Q matrix of transitions
 #'
 #' @return List with elements priors, affected_tips, affected_branches,
 #' tree_for_priors and genotype_vectors
@@ -258,6 +269,7 @@ generate_priors <- function(full_tree,
                             all_trees = NULL,
                             epi_fwd = NULL,
                             epi_bck = NULL,
+                            Q_mtx = NULL,
                             m = 2,
                             verbose = TRUE){
   if(is.null(all_trees)){
@@ -294,38 +306,40 @@ generate_priors <- function(full_tree,
       epi_mut_rate_bck_ <- epi_bck*the$human.snv.rate.per.base #human.epi.rate.per.cpg
     }
 
-    if(the$number_of_states == 2){
-      p2_list <- lapply(weighted_branch_lenghts,
-                        getP2,
-                        epi_mut_rate_bck = epi_mut_rate_bck_,
-                        epi_mut_rate_fwd = epi_mut_rate_fwd_)
-
-      p2 <- lapply(p2_list, function(x){
-        y <- as.vector(t(x))
-        return(y)
-      })
-      priors_per_branch <- log(do.call("rbind", p2))
-    }else if(the$number_of_states == 3){
-      p3_list <- lapply(weighted_branch_lenghts,
-                        getP3,
-                        epi_mut_rate_bck = epi_mut_rate_bck_,
-                        epi_mut_rate_fwd = epi_mut_rate_fwd_)
-      p3 <- lapply(p3_list, function(x){
-        y <- as.vector(t(x))
-        return(y)
-      })
-      priors_per_branch <- log(do.call("rbind", p3))
-    }else if(the$number_of_states == 4){
-      p4_list <- lapply(weighted_branch_lenghts,
-                        getP4,
-                        epi_mut_rate_bck = epi_mut_rate_bck_,
-                        epi_mut_rate_fwd = epi_mut_rate_fwd_)
-      p4 <- lapply(p4_list, function(x){
-        y <- as.vector(t(x))
-        return(y)
-      })
-      priors_per_branch <- log(do.call("rbind", p4))
+    if(is.null(Q_mtx)){
+      Q_mtx_ <- the$Q
+    }else{
+      cat("Using custom Q matrix.\n")
+      Q_mtx_ <- Q_mtx
     }
+
+    if(the$useQ){
+      p_list <- lapply(weighted_branch_lenghts,
+                       getP,
+                       Q = Q_mtx_)
+    }else{
+      if(the$number_of_states == 2){
+        p_list <- lapply(weighted_branch_lenghts,
+                         getP2,
+                         epi_mut_rate_bck = epi_mut_rate_bck_,
+                         epi_mut_rate_fwd = epi_mut_rate_fwd_)
+      }else if(the$number_of_states == 3){
+        p_list <- lapply(weighted_branch_lenghts,
+                         getP3,
+                         epi_mut_rate_bck = epi_mut_rate_bck_,
+                         epi_mut_rate_fwd = epi_mut_rate_fwd_)
+      }else if(the$number_of_states == 4){
+        p_list <- lapply(weighted_branch_lenghts,
+                         getP4,
+                         epi_mut_rate_bck = epi_mut_rate_bck_,
+                         epi_mut_rate_fwd = epi_mut_rate_fwd_)
+      }
+    }
+    p_vectors <- lapply(p_list, function(x){
+      y <- as.vector(t(x))
+      return(y)
+    })
+    priors_per_branch <- log(do.call("rbind", p_vectors))
 
     affected_branches <- apply(permuts, 1, function(x) which(x == 1))
 
