@@ -1,26 +1,28 @@
 ---
-title: "introduction"
+title: "Introduction to Memento"
 output: rmarkdown::html_vignette
 vignette: >
-  %\VignetteIndexEntry{introduction}
+  %\VignetteIndexEntry{Introduction to Memento}
   %\VignetteEngine{knitr::rmarkdown}
   %\VignetteEncoding{UTF-8}
 ---
-
 ```{r, include = FALSE}
 knitr::opts_chunk$set(
   collapse = TRUE,
   comment = "#>"
 )
 library(knitr)
+#library(kableExtra)
 ```
 
-## How to run Memento
-
-### Base case: the three state model on the complete phylogeny
+## Base Case: The Three State Model on The Complete Phylogeny
 
 Let's load some useful libraries and some simulated data for 100 sites.
-
+<style>
+    img {
+        border: 0;
+    }
+</style>
 ```{r load_lib_object}
 library(ape)
 library(data.table)
@@ -33,8 +35,8 @@ str(object)
 Followed by a bit of data cleaning...
 
 ```{r clean}
-meth_mtx <<- object$MF + object$MR
-unmeth_mtx <<- object$UF + object$UR
+meth_mtx <- object$MF + object$MR
+unmeth_mtx <- object$UF + object$UR
 colnames(meth_mtx) <- colnames(unmeth_mtx) <- object$tree$tip.label
 chr_pos_object <- paste0(object$details$Chrom, "_", object$details$Pos)
 rownames(meth_mtx) <- rownames(unmeth_mtx) <- chr_pos_object
@@ -47,32 +49,38 @@ setkey(dt_annotation, chr_pos)
 
 tree <- object$tree
 tree$tip.label <- gsub("PD40521_Normal_EM1_", "", tree$tip.label)
-colnames(meth_mtx) <- colnames(unmeth_mtx) <- gsub("PD40521_Normal_EM1_", "", colnames(unmeth_mtx))
+colnames(meth_mtx) <- colnames(unmeth_mtx) <- gsub("PD40521_Normal_EM1_", "", 
+                                                   colnames(unmeth_mtx))
+
+  # if(!("Chrom" %in% colnames(full_dt_subset))){
+  #   full_dt_subset <- full_dt_subset[, list("Chrom", "Pos") := tstrsplit(chr_pos, "_")]
+  # }
+
 range(tree$edge.length)
 ```
 
 The tree's branch lengths are in units of years (the individual's age). However, Memento assumes branch lengths represent the number of single nucleotide variants (SNVs). Assuming each cell acquires 20 SNVs per year, we rescale the branch lengths to correspond to that. To avoid zero-length branches, we convert the bifurcating tree to a polytomous one.
 
-```{r rescale_poly}
+```{r rescale_poly, out.width="700px", out.height="700px", dpi = 300, fig.height=8, fig.width=8, fig.fullwidth=TRUE}
 tree$edge.length <- tree$edge.length*20
 tree_di <- tree
 tree <- di2multi(tree) # convert to polytomy
 tree
 {par(mar=rep(1, 4))
   plot.phylo(tree)
-  nodelabels(cex = 0.5)
-  edgelabels(cex = 0.5)}
+  nodelabels(cex = 0.6)
+  edgelabels(cex = 0.6)}
 ```
 
 Some labels at the top of the tree are overlapping. Let's see what a tree in which each branch length is 1 unit long looks like.
 
-```{r plot_unit}
+```{r plot_unit, out.width="700px", out.height="700px", dpi = 300, fig.height=8, fig.width=8, fig.fullwidth=TRUE}
 unit_tree <- tree
 unit_tree$edge.length <- rep(1, length(unit_tree$edge.length))
 {par(mar=rep(1, 4))
   plot.phylo(unit_tree)
-  nodelabels(cex = 0.5)
-  edgelabels(cex = 0.5)}
+  nodelabels(cex = 0.8)
+  edgelabels(cex = 0.8)}
 ```
 
 That's better.
@@ -87,18 +95,22 @@ settings
 
 The table below shows which state each transition starts from (row) and ends at (column).
 
-```{r echo=FALSE, results='asis'}
+```{r echo=FALSE, results='asis', fig.align = 'left'}
 states_mtx <- settings[["state_transition_mtx"]]
 new_names <- paste0(dimnames(states_mtx)[[1]], c(" (0)", " (0.5)", " (1)"))
 dimnames(states_mtx) <- list(new_names, new_names)
-kable(states_mtx, caption = "State transition matrix", "html")
+
+knitr::kable(states_mtx, position = "left", align = "ccc", "html") #%>%
+  # kableExtra::kable_styling(position = "left", full_width = F) %>%
+  # kableExtra::column_spec(1, bold = T) %>%
+  # kableExtra::row_spec(0, background = "white")
 ```
 
 Let's find changes. First we compute the priors, which are the probabilities of each expected tip state vector. We set m to 2, meaning we will find up to 2 independent changes on the phylogeny. We set n_top_br to 2, meaning we ask for best two assignments to be returned.
 
 ```{r find_changes_full, cache=TRUE}
 priors <- generate_priors(full_tree = tree, m = 2)
-# find changes on each subtree
+# find changes
 assignments_full <- compute_probabilities(priors_per_tree = priors,
                                      m_reads_matrix = meth_mtx,
                                      u_reads_matrix = unmeth_mtx, 
@@ -119,43 +131,27 @@ Position 1_11 (row 7) is most likely to have changed on branch 13 and 46. The ro
 
 Let's see what these assignments actually look like. We're only interested in the best solution so we'll filter the others out.
 
-```{r hm_full}
-rate_mtx <- meth_mtx/(meth_mtx + unmeth_mtx) # compute methylation rate matrix: number of methylated reads divided by depth
+```{r hm_full, out.width="700px", out.height="700px", dpi = 300, fig.height=10, fig.width=10, fig.fullwidth=TRUE}
+rate_mtx <- meth_mtx/(meth_mtx + unmeth_mtx)
 
 assignments_best <- assignments_full[rank == 1,]
 
-# # Let's find some changes which occurred on non-terminal edges
-# internal_edges <- which(tree$edge[,2] > tree$edge[1,1])
-# 
-# internal_edges_regex <- paste0("^", as.character(internal_edges), "_|", "_", as.character(internal_edges), "\\.|^", as.character(internal_edges), "\\.")
-# 
-# contains_internal <- lapply(internal_edges_regex, function(x){
-#   y <- grep(x, assignments_best$branch, value = TRUE)
-#   if(length(y) == 0){
-#     z <- NULL
-#   }else{
-#     z <- y
-#   }
-#   return(z)
-# })
-# contains_internal <- contains_internal[!sapply(contains_internal,is.null)]
-# some_sites <- c("1_19", "1_20", "1_25", "1_54", "1_95")
-some_assignments <- c("n.3:9", "35_46.3:8_8", "13_42.2:4_6", "25_28.2:4_6", "13_29.2:4_6", "29_38.3:7_7")
+some_assignments <- c("n.3:9", "29_58.1:2_3", "2_17.2:4_3", "18_30.3:7_8", 
+                      "32_35.2:6_8", "31_36.2:6_7", "4_30.3:8_8")
 
-# common_ones <- names(sort(table(assignments_best$branch), decreasing = TRUE)[1:6])
 for(i in 1:length(some_assignments)){
   hm_plot <- plot_heatmap(assignment = some_assignments[i],
-                       full_dt = assignments_best,
-                       meth_rate_mtx = rate_mtx,
-                       tree = tree)
+                          full_dt = assignments_best,
+                          meth_rate_mtx = rate_mtx,
+                          tree = tree)
   plot(hm_plot)
 }
 
 ```
 
-### Advanced case 1: the three state model on the split phylogeny
+## Advanced Case: Splitting the Phylogeny
 
-In some heatmaps, it seems like additional changes occurred but since the settings only allow up to 2 changes, these aren't picked up. This tree has 30 branches, which is quite a lot, so if we allow more than 3 independent changes, computing the priors will be time (and memory) consuming. To avoid this, we can split the tree into smaller subtrees, and find changes to each subtree. Allowing 3 changes per subtree across 2 subtrees, we can find up to 6 changes on the full tree (2 subtrees * 3 changes per subtree). The function divide_tree_into_subtrees() takes the complete tree and finds internal nodes, which have an appropriate number of descendants (appropriate meaning within size limits set by the user), and returns their subtrees along with the root tree, which is the top level tree (its root is the root of the complete tree) that will now have new tips that represent roots of subtrees. The total number of branches across all subtrees will equal the number of branches in the complete phylogeny.
+In some heatmaps, it seems like additional changes occurred but since we only allow up to 2 changes, these aren't picked up. This tree has 30 branches, which is quite a lot, so if we allow more than 3 independent changes, computing the priors will be time (and memory) consuming. To avoid this, we can split the tree into smaller subtrees, and find changes to each subtree. Allowing 3 changes per subtree across 2 subtrees, we can find up to 6 changes on the full tree (2 subtrees * 3 changes per subtree). The function divide_tree_into_subtrees() takes the complete tree and finds internal nodes, which have an appropriate number of descendants (appropriate meaning within size limits set by the user), and returns their subtrees along with the root tree, which is the top level tree (its root is the root of the complete tree) that will now have new tips that represent roots of subtrees. The total number of branches across all subtrees will equal the number of branches in the complete phylogeny.
 
 ```{r, error=TRUE}
 subtrees <- divide_tree_into_subtrees(full_tree = tree, max_subtree_size = 15)
@@ -170,8 +166,9 @@ subtrees_custom <- divide_tree_into_subtrees(full_tree = tree, custom_nodes = c(
 
 Yay, this worked. Let's see what these look like.
 
-```{r, fig.align = "center", out.width = 800, out.height = 700, dpi = 300}
+```{r plot_subtrees, fig.align = "center", out.width="700px", out.height="700px", dpi = 300, fig.height=10, fig.width=10, fig.fullwidth=TRUE}
 j <- rep(c(1:3), each = 2)
+cex_val <- 1.5
 par(mfrow = c(3, 2),
     mar = c(1, 1, 1, 1))
 for(i in 1:6){
@@ -179,18 +176,18 @@ for(i in 1:6){
   if(i %% 2 == 0){
     my_tree_unit <- my_tree
     my_tree_unit$edge.length <- rep(1, length(my_tree_unit$edge.length))
-    {plot.phylo(my_tree_unit, main = names(subtrees)[j[i]])
-      nodelabels(cex = 0.5)
-      edgelabels(cex = 0.5)}
+    {plot.phylo(my_tree_unit, main = names(subtrees)[j[i]], cex = cex_val)
+      nodelabels(cex = cex_val)
+      edgelabels(cex = cex_val)}
   }else{
-    {plot.phylo(my_tree, main = names(subtrees)[j[i]])
-      nodelabels(cex = 0.5)
-      edgelabels(cex = 0.5)}
+    {plot.phylo(my_tree, main = names(subtrees)[j[i]], cex = cex_val)
+      nodelabels(cex = cex_val)
+      edgelabels(cex = cex_val)}
   }
-
 }
 
 ```
+
 Nice. Let's compute the priors and find changes on each subtree.
 
 ```{r priors_sub, cache=TRUE}
@@ -238,9 +235,9 @@ Nice, we obtained the best two solutions for each site.
 
 Let's see what these changes look like and compare new assignments to the original ones made on the full tree.
 
-```{r plot_heatmap_sub}
+```{r}
 mle_dt_best <- mle_branch_dt[rank == 1,]
-
+# selected <- c("n.3:9", "29_48_58.1:2_2_3", "17_29_30.1:3_2_2", "3_6_7_29_46_47.2:6_4_3_6_6_6", "17_29_32_35.2:6_4_6_8", "4_30_46_47.3:8_8_6_6", "1_36_57.3:8_7_8")
 same_sites_as_before <- assignments_best[branch %in% some_assignments][["chr_pos"]] # filter to plotted positions
 mle_subset <- mle_dt_best[chr_pos %in% same_sites_as_before]
 mle_subset[, .(probability, branch, only_branch, starting_state, branch_state, n_assignments_mle)]
@@ -248,7 +245,7 @@ mle_subset[, .(probability, branch, only_branch, starting_state, branch_state, n
 
 We found some additional changes! Let's plot these.
 
-```{r }
+```{r plot_hm_split, out.width="700px", out.height="700px", dpi = 300, fig.height=10, fig.width=10, fig.fullwidth=TRUE}
 same_sites_new_assignment <- names(sort(table(mle_subset[["branch"]]), decreasing = TRUE))
 
 for(i in 1:length(same_sites_new_assignment)){
@@ -260,14 +257,7 @@ for(i in 1:length(same_sites_new_assignment)){
 }
 ```
 
-### Advanced case 2: the four state model on the complete phylogeny
-
-Let's now look into some phased data.
-
-```{r}
-
-
-```
+These look much better than those on the full tree. We picked up some additional changes and the new probabilities of assignments are higher too.
 
 
 ```{r}
