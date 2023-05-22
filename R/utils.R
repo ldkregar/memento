@@ -181,9 +181,6 @@ convert_sub_to_full_tree_branches <- function(assignments,
                                   all_trees = subtrees,
                                   full_tree_ = full_tree,
                                   verbose1 = verbose)
-
-  # dt_combined_all_trees <<- dt_combined
-
   # filter to rank = 1
   if("rank" %in% colnames(dt_combined)){
     if(length(unique(dt_combined$rank)) > 1){
@@ -337,8 +334,17 @@ generate_expected_tip_states <- function(ss, changed_branches, change_types, tre
   result <- rep(ss, length(tree$tip.label))
 
   if(changed_branches != "n"){
-    changed_branches_split <- as.numeric(strsplit(changed_branches, "_")[[1]])
-    change_types_split <- as.numeric(strsplit(change_types, "_")[[1]])
+    if(is.character(changed_branches)){
+      changed_branches_split <- as.numeric(strsplit(changed_branches, "_")[[1]])
+    }else{
+      changed_branches_split <- changed_branches
+    }
+    if(is.character(change_types)){
+      change_types_split <- as.numeric(strsplit(change_types, "_")[[1]])
+    }else{
+      change_types_split <- change_types
+    }
+
     for(i in 1:length(changed_branches_split)){
       cur_branch <- changed_branches_split[i]
       cur_change <- change_types_split[i]
@@ -348,5 +354,31 @@ generate_expected_tip_states <- function(ss, changed_branches, change_types, tre
     }
   }
   return(result)
+}
+
+#' Get 3 state rates matrix: input methylation change rate per snv change rate
+#' per base pair, here states are 0, 1, 2 and correspond to 1, 2, 3 respectively
+#'
+#' @param r01 rate for transition 0 to 1
+#' @param r02 rate for transition 0 to 2
+#' @param r10 rate for transition 1 to 0
+#' @param r21 rate for transition 2 to 1
+#' @param r20 rate for transition 2 to 0
+#' @param r12 rate for transition 1 to 2
+#'
+#' @return matrix of rates
+#' @export
+#'
+#' @examples
+#' \dontrun{
+#' epi_mut_rate_bck=1e5*20/3e9
+#' epi_mut_rate_fwd=1e4*20/3e9
+#' Q_mtx <- get3StateRates(r01=2*epi_mut_rate_fwd, r02=0, r10=epi_mut_rate_bck,
+#' r12=epi_mut_rate_fwd, r21=2*epi_mut_rate_bck, r20=0)
+#' }
+get3StateRates <- function(r01,r02,r10,r21=r01,r20=r02,r12=r10){
+  matrix(c(-(r01+r02),r01,r02,
+           r10,-(r10+r12),r12,
+           r20,r21,-(r20+r21)),ncol=3,byrow = TRUE)
 }
 
