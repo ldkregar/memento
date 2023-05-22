@@ -569,7 +569,7 @@ find_most_likely_set <- function(dt_pre,
                                  mtx_list = NULL,
                                  verbose = TRUE,
                                  delete_matrices_from_hash = TRUE){
-  chr_pos = combined_branch = Chrom = Pos NULL
+  chr_pos = combined_branch = Chrom = Pos = NULL
   if(all(is.na(gamma)  & is.na(delta))){
     stopifnot("Must provide gamma and delta or ro values." = !is.na(ro))
   }
