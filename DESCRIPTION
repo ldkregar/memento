@@ -2,8 +2,10 @@ Package: memento
 Type: Package
 Title: Infer CpG Methylation States On A Phylogeny
 Version: 0.1.0
-Authors@R: person("Lori", "Kregar", email = "ld18@sanger.ac.uk",
-  role = c("aut", "cre"))
+Authors@R: c(person("Lori", "Kregar", email = "ld18@sanger.ac.uk",
+  role = c("aut", "cre")),
+  person("Nick", "Williams", email = "nw14@sanger.ac.uk",
+  role = c("aut")))
 Description: 
     Infer phylogenetically inherited changes between states from binomially distributed phenotype data.
 License: MIT + file LICENSE
@@ -14,6 +16,7 @@ Imports:
     data.table (>= 1.9.8),
     DescTools,
     dplyr,
+    expm,
     ggplot2,
     ggtree,
     hash,
