@@ -11,5 +11,10 @@ Infer phylogenetically inherited changes between states from binomially distribu
 \author{
 \strong{Maintainer}: Lori Kregar \email{ld18@sanger.ac.uk}
 
+Authors:
+\itemize{
+  \item Nick Williams \email{nw14@sanger.ac.uk}
+}
+
 }
 \keyword{internal}

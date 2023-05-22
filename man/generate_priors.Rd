@@ -9,6 +9,7 @@ generate_priors(
   all_trees = NULL,
   epi_fwd = NULL,
   epi_bck = NULL,
+  Q_mtx = NULL,
   m = 2,
   verbose = TRUE
 )
@@ -21,6 +22,8 @@ generate_priors(
 \item{epi_fwd}{numeric value for forward rate (gain of methylation)}
 
 \item{epi_bck}{numeric value for backward rate (loss of methylation)}
+
+\item{Q_mtx}{Q matrix of transitions}
 
 \item{m}{integer value for number of spontaneous changes on a tree}
 

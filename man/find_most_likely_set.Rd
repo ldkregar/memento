@@ -12,6 +12,7 @@ find_most_likely_set(
   delta = NA,
   epi_fwd = NULL,
   epi_bck = NULL,
+  Q_mtx = NULL,
   fraction_estimate = 1,
   n_top_br = 1,
   dt_anno = NULL,
@@ -37,6 +38,8 @@ find_most_likely_set(
 \item{epi_fwd}{numeric value for forward rate (gain of methylation)}
 
 \item{epi_bck}{numeric value for backward rate (loss of methylation)}
+
+\item{Q_mtx}{Q matrix}
 
 \item{fraction_estimate}{numeric value for how many sites to estimate MLE for}
 

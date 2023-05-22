@@ -8,7 +8,10 @@ set_memento_settings(
   new_number_of_states = NULL,
   human.snv.rate.per.base = NULL,
   new_epi_fwd = NULL,
-  new_epi_bck = NULL
+  new_epi_bck = NULL,
+  new_rates = NULL,
+  new_Q = NULL,
+  new_useQ = NULL
 )
 }
 \arguments{
@@ -19,6 +22,12 @@ set_memento_settings(
 \item{new_epi_fwd}{numeric value for forward rate (gain of methylation): scales the human SNV rate, e.g. 1e5 times greater than SNV rate per base}
 
 \item{new_epi_bck}{numeric value for backward rate (loss of methylation): scales the human SNV rate}
+
+\item{new_rates}{data.frame of new rates}
+
+\item{new_Q}{new Q matrix}
+
+\item{new_useQ}{logical whether to use Q matrix}
 }
 \description{
 Set memento settings
