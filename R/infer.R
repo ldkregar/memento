@@ -32,7 +32,7 @@ compute_probabilities <- function(priors_per_tree,
                                   n_top_br = 2,
                                   hash_name = NA,
                                   current_comb = NA){
-  chr_pos = branch = only_branch = starting_state = rank = n_assignments = NULL
+  chr_pos = branch = only_branch = starting_state = rank = n_assignments = Chrom = Pos = NULL
   if(length(priors_per_tree) == 1){
     only_one <- TRUE
     priors_per_tree <- priors_per_tree[[1]]
@@ -265,6 +265,11 @@ compute_probabilities <- function(priors_per_tree,
   dt_sol_molten[, starting_state := as.numeric(starting_state)]
   dt_new <- data.table::merge.data.table(dt_prob_molten, dt_sol_molten, by = c("chr_pos", "rank"))
   dt_new[, rank := as.numeric(rank)]
+
+  if(!("Chrom" %in% colnames(dt_new))){
+    dt_new[, c("Chrom", "Pos") := tstrsplit(chr_pos, "_")]
+    dt_new[, Pos := as.numeric(Pos)]
+  }
 
   if(only_one){
     list_rate <- lapply(dt_new$branch,
@@ -686,6 +691,11 @@ find_most_likely_set <- function(dt_pre,
   data.table::setkey(branch_mle, chr_pos, rank)
 
   updated_branch_dt <- branch_mle
+
+  if(!("Chrom" %in% colnames(updated_branch_dt))){
+    updated_branch_dt[, list("Chrom", "Pos") := data.table::tstrsplit(chr_pos, "_")]
+    updated_branch_dt[, Pos := as.numeric(Pos)]
+  }
 
   return(updated_branch_dt)
 }
