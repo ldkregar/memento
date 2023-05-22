@@ -63,10 +63,7 @@ plot_heatmap <- function(assignment,
   }
   # reorder positions by chromosome
   chrom_levels <- c(as.character(1:22), "X", "Y")
-  if(!("Chrom" %in% colnames(full_dt_subset))){
-    #dt_sol_molten[, c("only_branch", "starting_state", "branch_state") := tstrsplit(branch, "\\.|:")]
-    full_dt_subset[, c("Chrom", "Pos") := tstrsplit(chr_pos, "_")]
-  }
+
   full_dt_subset <- full_dt_subset[, chrom_fct := factor(Chrom, levels = chrom_levels, ordered = TRUE)]
 
   full_dt_subset <- full_dt_subset[order(chrom_fct, Pos),]
