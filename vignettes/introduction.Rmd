@@ -108,7 +108,7 @@ knitr::kable(states_mtx, position = "left", align = "ccc", "html") #%>%
 
 Let's find changes. First we compute the priors, which are the probabilities of each expected tip state vector. We set m to 2, meaning we will find up to 2 independent changes on the phylogeny. We set n_top_br to 2, meaning we ask for best two assignments to be returned.
 
-```{r find_changes_full, cache=TRUE}
+```{r find_changes_full}
 priors <- generate_priors(full_tree = tree, m = 2)
 # find changes
 assignments_full <- compute_probabilities(priors_per_tree = priors,
@@ -127,7 +127,7 @@ Columns that start with "ss_" contain the sum of branch lengths, which start in 
 
 In the first row, the most likely assignment for this position is "n", which means "no change" so the root and tip states are the same. The starting state is inferred to be in state 2 (half-methylated) and branch changes are of type 5 (the transition is from state 0.5 to 0.5). This assignment has a probability of 80%. The second row reports the second most likely assignment for this position and has a probability of 7%.
 
-Position 1_11 (row 7) is most likely to have changed on branch 13 and 46. The root starting state is 3 (i.e. 1 or methylated) and both branches underwent transition 7, which is a change from 1 to 0.
+Position 1_12 (9th row) is most likely to have changed on branch 58. The root starting state is 3 (i.e. 1 or methylated) and the branch underwent transition 7, which is a change from 1 to 0.
 
 Let's see what these assignments actually look like. We're only interested in the best solution so we'll filter the others out.
 
@@ -136,7 +136,7 @@ rate_mtx <- meth_mtx/(meth_mtx + unmeth_mtx)
 
 assignments_best <- assignments_full[rank == 1,]
 
-some_assignments <- c("n.3:9", "29_58.1:2_3", "2_17.2:4_3", "18_30.3:7_8", 
+some_assignments <- c("n.3:9", "58.3:7","29_58.1:2_3", "2_17.2:4_3", "18_30.3:7_8", 
                       "32_35.2:6_8", "31_36.2:6_7", "4_30.3:8_8")
 
 for(i in 1:length(some_assignments)){
@@ -190,7 +190,7 @@ for(i in 1:6){
 
 Nice. Let's compute the priors and find changes on each subtree.
 
-```{r priors_sub, cache=TRUE}
+```{r priors_sub}
 # compute priors
 priors_p_subtree <- generate_priors(all_trees = subtrees, full_tree = tree)
 
@@ -218,7 +218,7 @@ Sweet, the combined branch column shows which branches might have changed on the
 
 We would like to get a parsimonious solution for the full tree, where we will know the most likely starting state at root, which branches changed and which states they transitioned from and to, along with the solution's probability. To obtain this, we permute the candidate branches on the full tree and estimate their probability. We start with the full set (including all candidate changes) and a leave-one-out set. If the smaller set contains the most probable solution, we estimate the probability for a set that drops another branch, repeating the process until the not-smallest set contains the solution.
 
-```{r, cache=TRUE}
+```{r, find_set}
 mle_branch_dt <- find_most_likely_set(dt_pre =  converted_dt,
                                       full_tree = tree,
                                       ro = 0.95,
@@ -237,7 +237,6 @@ Let's see what these changes look like and compare new assignments to the origin
 
 ```{r}
 mle_dt_best <- mle_branch_dt[rank == 1,]
-# selected <- c("n.3:9", "29_48_58.1:2_2_3", "17_29_30.1:3_2_2", "3_6_7_29_46_47.2:6_4_3_6_6_6", "17_29_32_35.2:6_4_6_8", "4_30_46_47.3:8_8_6_6", "1_36_57.3:8_7_8")
 same_sites_as_before <- assignments_best[branch %in% some_assignments][["chr_pos"]] # filter to plotted positions
 mle_subset <- mle_dt_best[chr_pos %in% same_sites_as_before]
 mle_subset[, .(probability, branch, only_branch, starting_state, branch_state, n_assignments_mle)]
