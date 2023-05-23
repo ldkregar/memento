@@ -1,0 +1,168 @@
+---
+title: "Phased Data Workflow"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Phased Data Workflow}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>"
+)
+library(knitr)
+```
+
+## Advanced Case: The Four State Model on The Complete Phylogeny
+
+Let's load some useful libraries and some simulated data for 100 sites.
+<style>
+    img {
+        border: 0;
+    }
+</style>
+```{r load_lib_object}
+library(ape)
+library(data.table)
+library(memento)
+
+data("object_phased")
+str(object_phased)
+```
+
+And a bit of data cleaning. As before, the tree must be rescaled so that branch lengths are number of SNVs.
+
+```{r clean}
+df_meta <- object_phased$meta
+filters <- object_phased$filter.param
+dt_annotation <- data.table(object_phased$details)
+dt_annotation[, chr_pos := paste0(Chrom, "_", Pos)]
+setkey(dt_annotation, chr_pos)
+
+tree <- object_phased$tree
+tree$tip.label <- gsub("PD40521_Normal_EM1_", "", tree$tip.label)
+
+mtx_list <- object_phased[object_phased$EXTRAFIELDS]
+
+chr_pos_object <- paste0(object_phased$details$Chrom, "_", object_phased$details$Pos)
+
+for(i in 1:length(mtx_list)){
+   rownames(mtx_list[[i]]) <- chr_pos_object
+   colnames(mtx_list[[i]]) <- tree$tip.label
+}
+
+range(tree$edge.length)
+
+tree$edge.length <- tree$edge.length*20
+tree_di <- tree
+tree <- di2multi(tree) # convert to polytomy
+tree
+```
+Update settings to four states.
+
+```{r settings}
+settings <- memento_settings()
+settings
+set_memento_settings(new_number_of_states = 4)
+new_settings <- memento_settings()
+new_settings
+```
+Find changes on full tree.
+
+```{r find_changes_full}
+priors_phased <- generate_priors(full_tree = tree, 
+                                 m = 2)
+# find changes
+assignments_phased_full <- compute_probabilities(priors_per_tree = priors_phased,
+                                                 matrix_list = mtx_list,
+                                                 n_top_br = 2,
+                                                 ro = 0.95, 
+                                                 verbose = TRUE)
+head(assignments_phased_full, 10)
+
+```
+
+Plot changes. The reads at each site will now be plotted as a trio of maternal, paternal and unphased reads.
+
+```{r hm_full, out.width="700px", out.height="700px", dpi = 300, fig.height=10, fig.width=10, fig.fullwidth=TRUE}
+rate_mtx_list <- list("MT_rate" = mtx_list$MT_M/(mtx_list$MT_M + mtx_list$MT_U),
+                      "PT_rate" = mtx_list$PT_M/(mtx_list$PT_M + mtx_list$PT_U),
+                      "U_rate" = mtx_list$U_M/(mtx_list$U_M + mtx_list$U_U))
+
+assignments_phased_best <- assignments_phased_full[rank == 1,]
+
+some_phased_assignments <- c("58.4:15", "2_33.3:9_10", "27_50.1:3_2",
+                             "1_45.3:10_10", "7_32.1:3_3", "1_45.3:9_10")
+
+for(i in 1:length(some_phased_assignments)){
+  hm_plot_phased <- plot_heatmap(assignment = some_phased_assignments[i],
+                          full_dt = assignments_phased_best,
+                          meth_rate_mtx = rate_mtx_list,
+                          tree = tree)
+  plot(hm_plot_phased)
+}
+
+```
+
+## Advanced Case: Splitting the Phylogeny
+
+As in the three state model, we split the tree and assign changes. 
+
+```{r four_state_split}
+subtrees <- divide_tree_into_subtrees(full_tree = tree, max_subtree_size = 12)
+
+# compute priors
+priors_p_subtree_phased <- generate_priors(all_trees = subtrees, 
+                                           full_tree = tree)
+
+# find changes on each subtree
+assignments_split_phased <- lapply(priors_p_subtree_phased,
+                                   compute_probabilities, 
+                                   matrix_list = mtx_list,
+                                   ro = 0.95, 
+                                   verbose = TRUE)
+head(assignments_split_phased[[1]])
+# find candidate changes on the full tree
+converted_dt_phased <- convert_sub_to_full_tree_branches(assignments = assignments_split_phased,
+                                                  subtrees = subtrees,
+                                                  full_tree = tree)
+head(converted_dt_phased)
+
+mle_branch_dt_phased <- find_most_likely_set(dt_pre =  converted_dt_phased,
+                                             full_tree = tree,
+                                             ro = 0.95,
+                                             n_top_br = 2,
+                                             mtx_list = mtx_list,
+                                             fraction_estimate = 1,
+                                             verbose = FALSE,
+                                             dt_anno = dt_annotation)
+head(mle_branch_dt_phased)
+```
+
+Plot changes on the phylogeny.
+
+```{r plot_phased_four, out.width="700px", out.height="700px", dpi = 300, fig.height=10, fig.width=10, fig.fullwidth=TRUE}
+mle_dt_best_phased <- mle_branch_dt_phased[rank == 1,]
+same_sites_as_before <- assignments_phased_best[branch %in% some_phased_assignments][["chr_pos"]] # filter to plotted positions
+mle_subset_phased <- mle_dt_best_phased[chr_pos %in% same_sites_as_before]
+mle_subset_phased[, .(probability, branch, only_branch, starting_state, branch_state, n_assignments_mle)]
+
+same_sites_new_assignment <- names(sort(table(mle_subset_phased[["branch"]]), decreasing = TRUE))
+
+for(i in 1:length(same_sites_new_assignment)){
+  hm_plot_phased_split <- plot_heatmap(assignment = same_sites_new_assignment[i],
+                       full_dt = mle_subset_phased,
+                       meth_rate_mtx = rate_mtx_list,
+                       tree = tree)
+  plot(hm_plot_phased_split)
+}
+
+```
+
+
+```{r}
+sessionInfo()
+```
+
