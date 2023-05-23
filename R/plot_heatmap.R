@@ -31,7 +31,7 @@ plot_heatmap <- function(assignment,
                          df_col_meta = NULL,
                          custom_title = NULL,
                          custom_subtitle = NULL){
-  branch = chr_pos = chrom_fct = Chrom = Pos = Affected = NULL
+  branch = chr_pos = chrom_fct = Chrom = Pos = Affected = color = NULL
 
   full_dt_subset <- full_dt[branch == assignment,]
 
@@ -47,14 +47,19 @@ plot_heatmap <- function(assignment,
     state_explain <- "1: 0->0, 2: 0->1, 3: 1->0, 4: 1->1"
   }else if(the$number_of_states == 3){
     state_explain <- "1: 0->0, 2: 0->0.5, 3: 0->1, 4: 0.5-> 0, 5: 0.5->0.5, 6: 0.5->1, 7: 1->0, 8: 1->0.5, 9: 1->1"
-  }else{
-    stop("You must call plot_heatmap_phased if you wish to plot the 4 state")
+  }else if(the$number_of_states == 4){
+    state_explain <- "Stable states: MP: 1:00, 6:01, 11:10, 16:11\nChange types: MP: 2: 00->01, 3: 00->10, 4: 00->11, 5:01->00, 7:01->10, 8:01->11,\n9:10->00, 10:10->01, 12:10->11, 13:11->00, 14:11->01, 15:11->10"
   }
 
   if(is.null(custom_subtitle)){
-    custom_subtitle <- sprintf("Rates: forward: %1.2e, backward: %1.2e. Transitions:\n%s",
-                               the$epi_fwd, the$epi_bck,
-                               state_explain)
+    if(the$useQ){
+      custom_subtitle <- sprintf("Rates: used Q matrix. Transitions:\n%s",
+                                 state_explain)
+    }else{
+      custom_subtitle <- sprintf("Rates: forward: %1.2e, backward: %1.2e. Transitions:\n%s",
+                                 the$epi_fwd, the$epi_bck,
+                                 state_explain)
+    }
   }
 
   if(length(specific_positions) > max_pos){
@@ -67,16 +72,38 @@ plot_heatmap <- function(assignment,
   full_dt_subset <- full_dt_subset[, chrom_fct := factor(Chrom, levels = chrom_levels, ordered = TRUE)]
 
   full_dt_subset <- full_dt_subset[order(chrom_fct, Pos),]
+  if(is.matrix(meth_rate_mtx)){
+    pos_rates <- convert_to_matrix(meth_rate_mtx, full_dt_subset[["chr_pos"]])
+    pos_rates <- pos_rates[,match(colnames(pos_rates), tree$tip.label), drop=FALSE]
+    pos_rates_flip <- t(pos_rates)
+  }else if(is.list(meth_rate_mtx)){
+    pos_rates_list <- lapply(meth_rate_mtx, convert_to_matrix, chr_pos = specific_positions)
+    pos_rates_list <- lapply(pos_rates_list, function(one){
+      return(t(one[, match(colnames(one), tree$tip.label), drop = FALSE]))
+    })
+    pos_rates_mtx <- do.call("cbind", pos_rates_list)
+    eg <- expand.grid(specific_positions, names(pos_rates_list))
+    new_colnames <- apply(eg, 1, function(n){
+      n <- rev(n)
+      paste0(n, collapse = ":")
+    })
+    colnames(pos_rates_mtx) <- new_colnames
+    # new_order <- lapply(specific_positions, function(p){
+    #   grep(p, colnames(pos_rates_mtx), value = TRUE)
+    # })
+    # pos_rates_mtx <- pos_rates_mtx[,unlist(new_order)]
+    pos_rates_flip <- pos_rates_mtx
+  }
 
-  pos_rates <- convert_to_matrix(meth_rate_mtx, full_dt_subset[["chr_pos"]])
-  pos_rates <- pos_rates[,match(colnames(pos_rates), tree$tip.label), drop=FALSE]
-  pos_rates_flip <- t(pos_rates)
-  if(the$number_of_states == 3){
-    conversion <- c(0, 0.5, 1)
-    names(conversion) <- as.character(c(1:3))
-  }else if(the$number_of_states == 2){
+  if(the$number_of_states == 2){
     conversion <- c(0, 1)
     names(conversion) <- as.character(c(1:2))
+  }else if(the$number_of_states == 3){
+    conversion <- c(0, 0.5, 1)
+    names(conversion) <- as.character(c(1:3))
+  }else if(the$number_of_states == 4){
+    conversion <- c("00", "01", "10", "11")
+    names(conversion) <- as.character(c(1:4))
   }
   ss <- conversion[as.character(only_starting_state) == names(conversion)]
   plot_assignment_vector_char <- generate_expected_tip_states(ss = only_starting_state,
@@ -101,17 +128,32 @@ plot_heatmap <- function(assignment,
   }else if(the$number_of_states == 3){
     affected_tip_colors <- c("#313695","#fdae61", "#a50026")
     names(affected_tip_colors) <- as.factor(c(0, 0.5, 1))
+
+    edge_change_colours <- c("#fdae61","#d73027", "#abd9e9", "#fdae61",
+                             "#4575b4","#abd9e9", "##808080")
+    names(edge_change_colours) <- as.factor(c(2, 3, 4, 6, 7, 8, 9))
+
+  }else if(the$number_of_states == 4){
+    affected_tip_colors <- c("#313695","#fdae61", "#fb9a99", "#a50026")
+    names(affected_tip_colors) <- as.factor(c("00", "01", "10", "11"))
+
+    edge_change_colours <- c("#fdae61", "#fb9a99", "#d73027",
+                             "#cab2d6", "#bdbdbd", "#fb9a99",
+                             "#abd9e9", "#bdbdbd", "#fdae61",
+                             "#4575b4", "#abd9e9", "#cab2d6")
+    names(edge_change_colours) <- as.factor(c(2, 3, 4,
+                                              5, 7, 8,
+                                              9, 10, 12,
+                                              13, 14, 15))
   }
-
-  edge_change_colours <- c("#fdae61","#d73027", "#abd9e9", "#fdae61", "#4575b4","#abd9e9", "##808080")
-  names(edge_change_colours) <- as.factor(c(2, 3, 4, 6, 7, 8, 9))
-
   #max_x <- ifelse(donor_id == "KX004", ifelse(include_tip_labels, 1600, 1500), 80)
-  color = NULL
   p1 <- ggtree::ggtree(new_tree, ladderize = FALSE) +
     ggtree::geom_tippoint(aes(color=Affected)) +
     ggtree::scale_color_manual(values = affected_tip_colors) +
-    ggplot2::guides(color=ggplot2::guide_legend(title="Expected\ntip state"))
+    ggplot2::guides(color=ggplot2::guide_legend(title=sprintf("Expected\ntip state%s",
+                                                              ifelse(the$number_of_states == 4,
+                                                                     " (MP)",
+                                                                     ""))))
 
   if(include_tip_labels){
     p1 <- p1 +
@@ -119,7 +161,12 @@ plot_heatmap <- function(assignment,
   }
   edges <- strsplit(only_branch, "_")[[1]]
   edge_changes <- strsplit(only_states, "_")[[1]]
-  edge_changes <- edge_changes[edge_changes != "9" & edge_changes != "5" & edge_changes!= "1"]
+  if(the$number_of_states == 3){
+    edge_changes <- edge_changes[!(edge_changes %in% c("1", "5", "9"))]
+  }else if(the$number_of_states == 4){
+    edge_changes <- edge_changes[!(edge_changes %in% c("1", "6", "11", "16"))]
+  }
+
   if(only_branch != "n"){
     nodes <- tree$edge[as.numeric(edges),2]
     p1 <- p1 +
@@ -129,9 +176,10 @@ plot_heatmap <- function(assignment,
                    alpha = 0.4)
   }
   if(is.null(custom_title)){
-    custom_title <-sprintf("Assigned to %s;\ntransition(s): %s, respectively;\nstarting state: %s",
+    custom_title <-sprintf("Assigned to %s;\ntransition(s): %s, respectively;\nstarting state%s: %s",
                            paste0(edges, collapse = ", "),
                            paste0(strsplit(only_states, "_")[[1]], collapse = ", "),
+                           ifelse(the$number_of_states == 4, " (MP)", ""),
                            as.character(ss))
   }
   p3 <- suppressMessages(ggtree::gheatmap(p1,
