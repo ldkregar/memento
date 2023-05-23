@@ -138,6 +138,10 @@ set_memento_settings <- function(new_number_of_states = NULL,
       return(cc)
     })
     names(the$change_combs_list) <- as.character(0:(length(the$change_combs_list)-1))
+
+    the$df_rate <- getRateDf(the$number_of_states)
+    the$df_rate$rate <- rep(0.001, nrow(the$df_rate))
+    the$Q <- getQMatrix(the$df_rate)
   }
 
   if(!is.null(human.snv.rate.per.base)){
