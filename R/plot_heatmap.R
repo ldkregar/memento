@@ -77,12 +77,12 @@ plot_heatmap <- function(assignment,
     pos_rates <- pos_rates[,match(colnames(pos_rates), tree$tip.label), drop=FALSE]
     pos_rates_flip <- t(pos_rates)
   }else if(is.list(meth_rate_mtx)){
-    pos_rates_list <- lapply(meth_rate_mtx, convert_to_matrix, chr_pos = specific_positions)
+    pos_rates_list <- lapply(meth_rate_mtx, convert_to_matrix, chr_pos = full_dt_subset[["chr_pos"]])
     pos_rates_list <- lapply(pos_rates_list, function(one){
       return(t(one[, match(colnames(one), tree$tip.label), drop = FALSE]))
     })
     pos_rates_mtx <- do.call("cbind", pos_rates_list)
-    eg <- expand.grid(specific_positions, names(pos_rates_list))
+    eg <- expand.grid(full_dt_subset[["chr_pos"]], names(pos_rates_list))
     new_colnames <- apply(eg, 1, function(n){
       n <- rev(n)
       paste0(n, collapse = ":")
