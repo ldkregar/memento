@@ -356,8 +356,10 @@ generate_expected_tip_states <- function(ss, changed_branches, change_types, tre
   return(result)
 }
 
-#' Get 3 state rates matrix: input methylation change rate per snv change rate
-#' per base pair, here states are 0, 1, 2 and correspond to 1, 2, 3 respectively
+#' Get 3 state rates matrix
+#' @details
+#' Input the methylation change rate per snv change rate
+#' per base pair. Here states are 0, 1, 2 and correspond to 1, 2, 3 respectively. Written by NW.
 #'
 #' @param r01 rate for transition 0 to 1
 #' @param r02 rate for transition 0 to 2
@@ -382,3 +384,27 @@ get3StateRates <- function(r01,r02,r10,r21=r01,r20=r02,r12=r10){
            r20,r21,-(r20+r21)),ncol=3,byrow = TRUE)
 }
 
+
+#' Get 4 state rates matrix
+#' @details
+#' Input the forward and backward rates (cpg rate times snv rate per basepair)
+#' and get Q matrix in return. Written by NW.
+#'
+#' @param fwd numeric forward rate
+#' @param bck numeric backward rate
+#'
+#' @return Q matrix
+#' @export
+#'
+#' @examples
+#' \dontrun{
+#' epi_mut_rate_bck=1e5*20/3e9
+#' epi_mut_rate_fwd=1e4*20/3e9
+#' Q2 <- get4StateRates(fwd = epi_mut_rate_fwd,
+#' bck = epi_mut_rate_bck)
+#' }
+get4StateRates <- function(fwd, bck){
+  out <- matrix(c(0, fwd, fwd, 0, bck, 0, 0, fwd, bck, 0, 0, fwd, 0, bck, bck, 0), byrow = TRUE, ncol = 4)
+  diag(out) <- -rowSums(out)
+  return(out)
+}

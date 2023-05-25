@@ -2,8 +2,7 @@
 % Please edit documentation in R/utils.R
 \name{get3StateRates}
 \alias{get3StateRates}
-\title{Get 3 state rates matrix: input methylation change rate per snv change rate
-per base pair, here states are 0, 1, 2 and correspond to 1, 2, 3 respectively}
+\title{Get 3 state rates matrix}
 \usage{
 get3StateRates(r01, r02, r10, r21 = r01, r20 = r02, r12 = r10)
 }
@@ -24,8 +23,11 @@ get3StateRates(r01, r02, r10, r21 = r01, r20 = r02, r12 = r10)
 matrix of rates
 }
 \description{
-Get 3 state rates matrix: input methylation change rate per snv change rate
-per base pair, here states are 0, 1, 2 and correspond to 1, 2, 3 respectively
+Get 3 state rates matrix
+}
+\details{
+Input the methylation change rate per snv change rate
+per base pair. Here states are 0, 1, 2 and correspond to 1, 2, 3 respectively. Written by NW.
 }
 \examples{
 \dontrun{
