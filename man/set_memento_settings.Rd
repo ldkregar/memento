@@ -11,7 +11,8 @@ set_memento_settings(
   new_epi_bck = NULL,
   new_rates = NULL,
   new_Q = NULL,
-  new_useQ = NULL
+  new_useQ = NULL,
+  new_use_ff = NULL
 )
 }
 \arguments{
@@ -28,6 +29,8 @@ set_memento_settings(
 \item{new_Q}{new Q matrix}
 
 \item{new_useQ}{logical whether to use Q matrix}
+
+\item{new_use_ff}{logical whether to use ff for matrix multiplication instead of cpp}
 }
 \description{
 Set memento settings
