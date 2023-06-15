@@ -85,6 +85,7 @@ getQMatrix <- function(df){
 
 the$Q <- getQMatrix(the$df_rate)
 the$useQ <- FALSE
+the$use_ff <- FALSE
 
 #' Report my default settings
 #'
@@ -100,7 +101,8 @@ memento_settings <- function() {
               "length_change_comb_list" = length(the$change_combs_list),
               "df_rate" = the$df_rate,
               "Q" = the$Q,
-              "useQ" = the$useQ))
+              "useQ" = the$useQ,
+              "use_ff" = the$use_ff))
 }
 
 #' Set memento settings
@@ -112,6 +114,7 @@ memento_settings <- function() {
 #' @param new_rates data.frame of new rates
 #' @param new_Q new Q matrix
 #' @param new_useQ logical whether to use Q matrix
+#' @param new_use_ff logical whether to use ff for matrix multiplication instead of cpp
 #'
 #' @export
 set_memento_settings <- function(new_number_of_states = NULL,
@@ -120,7 +123,8 @@ set_memento_settings <- function(new_number_of_states = NULL,
                                  new_epi_bck = NULL,
                                  new_rates = NULL,
                                  new_Q = NULL,
-                                 new_useQ = NULL){
+                                 new_useQ = NULL,
+                                 new_use_ff = NULL){
   old_num_states <- the$number_of_states
   if(!is.null(new_number_of_states)){
     the$number_of_states <- new_number_of_states
@@ -165,6 +169,9 @@ set_memento_settings <- function(new_number_of_states = NULL,
     the$Q <- new_Q
     cat("New Q matrix, but df_rate is NULL")
   }
+  if(!is.null(new_use_ff)){
+    the$use_ff <- new_use_ff
+  }
   invisible(old_num_states)
 }
 
@@ -200,5 +207,6 @@ set_memento_settings_to_default <- function(){
 
   the$Q <- getQMatrix(the$df_rate)
   the$useQ <- FALSE
+  the$use_ff <- FALSE
 }
 
