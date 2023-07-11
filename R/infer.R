@@ -116,9 +116,14 @@ compute_probabilities <- function(priors_per_tree,
     }
     if(length(a) == 1 & length(b) == 1 & length(c) == 1){
       if(the$use_ff){
-        p = (ff::as.ff(a*methcount + b*wtcount))[] %*% (ff::as.ff(prep_gnt_tf[["3"]]))[] +
-          (ff::as.ff(c*(methcount+wtcount)))[] %*% (ff::as.ff(prep_gnt_tf[["2"]]))[] +
-          (ff::as.ff((b*methcount+a*wtcount)))[] %*% (ff::as.ff(prep_gnt_tf[["1"]]))[]
+        # p = (ff::as.ff(a*methcount + b*wtcount))[] %*% (ff::as.ff(prep_gnt_tf[["3"]]))[] +
+        #   (ff::as.ff(c*(methcount+wtcount)))[] %*% (ff::as.ff(prep_gnt_tf[["2"]]))[] +
+        #   (ff::as.ff((b*methcount+a*wtcount)))[] %*% (ff::as.ff(prep_gnt_tf[["1"]]))[]
+        #profvis({
+          p=methods::as((a*methcount + b*wtcount), "HDF5Matrix") %*% methods::as(prep_gnt_tf[["3"]], "HDF5Matrix") +
+            methods::as(c*(methcount+wtcount), "HDF5Matrix") %*% methods::as(prep_gnt_tf[["2"]], "HDF5Matrix") +
+            methods::as((b*methcount+a*wtcount), "HDF5Matrix") %*% methods::as(prep_gnt_tf[["1"]], "HDF5Matrix")
+          #})
       }else{
         p=eigenMapMatMult2((a*methcount + b*wtcount), prep_gnt_tf[["3"]]) +
           eigenMapMatMult2(c*(methcount+wtcount), prep_gnt_tf[["2"]]) +
@@ -146,9 +151,13 @@ compute_probabilities <- function(priors_per_tree,
       tmp4 <- sweep(methcount, 2, b, "*")
       tmp5 <- sweep(wtcount, 2, a, "*")
       if(the$use_ff){
-        new_p <- (ff::as.ff(tmp1+tmp2))[] %*% (ff::as.ff(prep_gnt_tf[["3"]]))[] +
-          (ff::as.ff(tmp3))[] %*% (ff::as.ff(prep_gnt_tf[["2"]]))[] +
-          (ff::as.ff(tmp4 + tmp5))[] %*% (ff::as.ff(prep_gnt_tf[["1"]]))[]
+        # new_p <- (ff::as.ff(tmp1+tmp2))[] %*% (ff::as.ff(prep_gnt_tf[["3"]]))[] +
+        #   (ff::as.ff(tmp3))[] %*% (ff::as.ff(prep_gnt_tf[["2"]]))[] +
+        #   (ff::as.ff(tmp4 + tmp5))[] %*% (ff::as.ff(prep_gnt_tf[["1"]]))[]
+
+        new_p <- methods::as((tmp1+tmp2), "HDF5Matrix") %*% methods::as(prep_gnt_tf[["3"]], "HDF5Matrix") +
+          methods::as(tmp3, "HDF5Matrix") %*% methods::as(prep_gnt_tf[["2"]], "HDF5Matrix") +
+          methods::as((tmp4 + tmp5), "HDF5Matrix") %*% methods::as(prep_gnt_tf[["1"]], "HDF5Matrix")
       }else{
         new_p <- eigenMapMatMult2((tmp1+tmp2), prep_gnt_tf[["3"]]) +
           eigenMapMatMult2(tmp3, prep_gnt_tf[["2"]]) +
@@ -158,34 +167,7 @@ compute_probabilities <- function(priors_per_tree,
       }
     }else if(the$number_of_states == 4){
       if(the$use_ff){
-        state1 <- (ff::as.ff(matrix_list[["MT_M"]]))[] %*% (ff::as.ff(prep_gnt_tf[["4"]]))[] +
-          (ff::as.ff(matrix_list[["PT_M"]]))[] %*% (ff::as.ff(prep_gnt_tf[["4"]]))[] +
-          (ff::as.ff(matrix_list[["U_M"]]))[] %*% (ff::as.ff(prep_gnt_tf[["4"]]))[] +
-          (ff::as.ff(matrix_list[["MT_U"]]))[] %*% (ff::as.ff(prep_gnt_tf[["2"]]))[] +
-          (ff::as.ff(matrix_list[["PT_M"]]))[] %*% (ff::as.ff(prep_gnt_tf[["2"]]))[] +
-          (ff::as.ff(matrix_list[["PT_U"]]))[] %*% (ff::as.ff(prep_gnt_tf[["3"]]))[] +
-          (ff::as.ff(matrix_list[["MT_M"]]))[] %*% (ff::as.ff(prep_gnt_tf[["3"]]))[] +
-          (ff::as.ff(matrix_list[["MT_U"]]))[] %*% (ff::as.ff(prep_gnt_tf[["1"]]))[] +
-          (ff::as.ff(matrix_list[["PT_U"]]))[] %*% (ff::as.ff(prep_gnt_tf[["1"]]))[] +
-          (ff::as.ff(matrix_list[["U_U"]]))[] %*% (ff::as.ff(prep_gnt_tf[["1"]]))[]
-
-        state2 <- (ff::as.ff(matrix_list[["MT_U"]]))[] %*% (ff::as.ff(prep_gnt_tf[["4"]]))[] +
-          (ff::as.ff(matrix_list[["PT_U"]]))[] %*% (ff::as.ff(prep_gnt_tf[["4"]]))[] +
-          (ff::as.ff(matrix_list[["U_U"]]))[] %*% (ff::as.ff(prep_gnt_tf[["4"]]))[] +
-          (ff::as.ff(matrix_list[["MT_M"]]))[] %*% (ff::as.ff(prep_gnt_tf[["2"]]))[] +
-          (ff::as.ff(matrix_list[["PT_U"]]))[] %*% (ff::as.ff(prep_gnt_tf[["2"]]))[] +
-          (ff::as.ff(matrix_list[["PT_M"]]))[] %*% (ff::as.ff(prep_gnt_tf[["3"]]))[] +
-          (ff::as.ff(matrix_list[["MT_U"]]))[] %*% (ff::as.ff(prep_gnt_tf[["3"]]))[] +
-          (ff::as.ff(matrix_list[["PT_M"]]))[] %*% (ff::as.ff(prep_gnt_tf[["1"]]))[] +
-          (ff::as.ff(matrix_list[["MT_M"]]))[] %*% (ff::as.ff(prep_gnt_tf[["1"]]))[] +
-          (ff::as.ff(matrix_list[["U_M"]]))[] %*% (ff::as.ff(prep_gnt_tf[["1"]]))[]
-
-        state3 <- (ff::as.ff(matrix_list[["U_M"]]))[] %*% (ff::as.ff(prep_gnt_tf[["2"]]))[] +
-          (ff::as.ff(matrix_list[["U_U"]]))[] %*% (ff::as.ff(prep_gnt_tf[["2"]]))[] +
-
-          (ff::as.ff(matrix_list[["U_M"]]))[] %*% (ff::as.ff(prep_gnt_tf[["3"]]))[] +
-          (ff::as.ff(matrix_list[["U_U"]]))[] %*% (ff::as.ff(prep_gnt_tf[["3"]]))[]
-
+        stop("low imprint code for 4 states not yet implemented, set the$use_ff to FALSE")
       }else{
         state1 <- eigenMapMatMult2(matrix_list[["MT_M"]], prep_gnt_tf[["4"]]) +
           eigenMapMatMult2(matrix_list[["PT_M"]], prep_gnt_tf[["4"]]) +
@@ -245,8 +227,7 @@ compute_probabilities <- function(priors_per_tree,
         }
       }else{
         if(the$use_ff){
-          p = (ff::as.ff(a*methcount + b*wtcount))[] %*% (ff::as.ff(prep_gnt_tf[["2"]]))[] +
-            (ff::as.ff(b*methcount + a*wtcount))[] %*% (ff::as.ff(prep_gnt_tf[["1"]]))[]
+          stop("low imprint code for 2 states not yet implemented, set the$use_ff to FALSE")
         }else{
           p = eigenMapMatMult2((a*methcount + b*wtcount), prep_gnt_tf[["2"]]) +
             eigenMapMatMult2((b*methcount + a*wtcount), prep_gnt_tf[["1"]])
@@ -264,37 +245,94 @@ compute_probabilities <- function(priors_per_tree,
   if(is.null(rownames(p))){
     rownames(p) <- all_sites
   }
-
-  raw_val <- p+prior1
+  if(the$use_ff){
+    raw_val <- p + methods::as(prior1, "HDF5Matrix")
+  }else{
+    raw_val <- p + prior1
+  }
 
   if(!is.na(hash_name)){
     the$global_hash_list[[hash_name]][["raw_vals"]][[as.character(current_comb)]] <- list(raw_val)
   }
 
-  raw_rowsum <- rowSums(raw_val)
+  if(the$use_ff == FALSE){
+    raw_rowsum <- rowSums(raw_val)
 
-  max_raw <- apply(raw_val, 1, max)
+    max_raw <- apply(raw_val, 1, max)
 
-  max_subtracted <- sweep(raw_val, 1, max_raw)
-  max_prob <- exp(max_subtracted) / apply(exp(max_subtracted), 1, sum)
+    max_subtracted <- sweep(raw_val, 1, max_raw)
+    max_prob <- exp(max_subtracted) / apply(exp(max_subtracted), 1, sum)
 
-  max_prob_values <- apply(max_prob, 1, function(x){
-    sort(x, decreasing = TRUE)[1:min(n_top_br, ncol(max_prob))]
-  }, simplify = FALSE)
+    how_many <- min(n_top_br, ncol(max_prob))
+    comb_name <- colnames(max_prob)
 
-  max_prob_indices <- apply(max_prob, 1, function(x){
-    y <- order(x, decreasing = TRUE)[1:min(n_top_br, ncol(max_prob))]
-    z <- colnames(max_prob)[y]
-    return(z)
-  }, simplify = FALSE)
+    max_prob_both <- apply(max_prob, 1, function(x){
+      sort(x, decreasing = TRUE)[1:how_many]
+    }, simplify = FALSE)
+
+    max_prob_values <- max_prob_both
+
+    max_prob_indices <- lapply(max_prob_both, function(oneset){
+      return(names(oneset))
+    })
+
+    # max_prob_indices <- apply(max_prob, 1, function(x){
+    #   y <- order(x, decreasing = TRUE)[1:how_many]
+    #   z <- comb_name[y]
+    #   return(z)
+    # }, simplify = FALSE)
+    #
+    # max_p_v_i <- apply(max_prob, 1, function(onerow){
+    #   ord <- order(onerow, decreasing = TRUE)[1:how_many]
+    #   vals <- onerow[ord]
+    #   inds <- comb_name[ord]
+    #   return(list("vals" = vals,
+    #               "inds" = inds))
+    # })
+
+  }else{
+
+    raw_rowsum <- DelayedArray::rowSums(raw_val)
+
+    max_raw <- apply(raw_val, 1, max)
+
+    max_subtracted <- sweep(as(raw_val, "Matrix"), 1, max_raw)
+
+    max_prob <- exp(max_subtracted) / apply(exp(max_subtracted), 1, sum)
+
+    how_many <- min(n_top_br, ncol(max_prob))
+    comb_name <- colnames(max_prob)
+
+    max_prob_both <- DelayedArray::blockApply(x = max_prob,
+                                   FUN = function(row1){
+                                     y <- order(row1, decreasing = TRUE)[1:how_many]
+                                     indi <- comb_name[y]
+                                     valu <- row1[y]
+                                     return(list("vals" = valu,
+                                                 "inds" = indi))
+                                     #return(sort(row1, decreasing = TRUE)[1:how_many])
+                                   },
+                                   grid = S4Arrays::RegularArrayGrid(refdim = dim(max_prob),
+                                                           spacings = c(1L, ncol(max_prob))))
+    max_prob_values <- lapply(max_prob_both, "[[", 1)
+    max_prob_indices <- lapply(max_prob_both, "[[", 2)
+    # max_prob_indices <- DelayedArray::blockApply(x = max_prob,
+    #                               FUN = function(row1){
+    #                                 y <- order(row1, decreasing = TRUE)[1:how_many]
+    #                                 z <- comb_name[y]
+    #                                 return(z)
+    #                               },
+    #                               grid = S4Arrays::RegularArrayGrid(refdim = dim(max_prob),
+    #                                                       spacings = c(1L, ncol(max_prob))))
+  }
 
   dt_prob <- data.table::data.table(do.call("rbind", max_prob_values))
   colnames(dt_prob) <- as.character(c(1:n_top_br))
-  dt_prob[, chr_pos := names(max_prob_values)]
+  dt_prob[, chr_pos := all_sites]
 
   dt_solution <- data.table::data.table(do.call("rbind", max_prob_indices))
   colnames(dt_solution) <- as.character(c(1:n_top_br))
-  dt_solution[, chr_pos := names(max_prob_indices)]
+  dt_solution[, chr_pos := all_sites]
 
   dt_prob_molten <- data.table::melt(dt_prob, id.vars = c("chr_pos"),
                                      value.name = "probability",
@@ -473,23 +511,35 @@ get_mle <- function(branches,
       }else{
         all_raw <- eligible_el #global_hash_list[[branches]][["raw_vals"]][eligible_el]
         all_raw_matrices <- lapply(all_raw, "[[", 1)
-        all_raw_bound <- do.call("cbind", all_raw_matrices)
+        if(the$use_ff){
+          all_raw_bound <- as(do.call(DelayedArray::cbind, all_raw_matrices), "Matrix")
+        }else{
+          all_raw_bound <- do.call("cbind", all_raw_matrices)
+        }
         max_per_row <- apply(all_raw_bound, 1, max)
         max_per_row_ind <- apply(all_raw_bound, 1, which.max)
+
         tmp_per_part <- exp(sweep(all_raw_bound, 1, max_per_row)) / apply(exp(sweep(all_raw_bound, 1, max_per_row)), 1, sum)
+
+        names_pp <- colnames(tmp_per_part)
+        this_many <- min(n_top_branches, ncol(tmp_per_part))
         # sort
         ranked_max_per_row_prob <- apply(tmp_per_part, 1, function(x){
-          sort(x, decreasing = TRUE)[1:min(n_top_branches, ncol(tmp_per_part))]
+          sort(x, decreasing = TRUE)[1:this_many]
         }, simplify = FALSE)
 
-        ranked_max_per_row_ind_prob <- apply(tmp_per_part, 1, function(x){
-          y <- order(x, decreasing = TRUE)[1:min(n_top_branches, ncol(tmp_per_part))]
-          z <- colnames(tmp_per_part)[y]
-          return(z)
-        }, simplify = FALSE)
+        ranked_max_per_row_ind_prob <- lapply(ranked_max_per_row_prob, function(item){
+          return(names(item))
+        })
+        # ranked_max_per_row_ind_prob <- apply(tmp_per_part, 1, function(x){
+        #   y <- order(x, decreasing = TRUE)[1:this_many]
+        #   z <- names_pp[y]
+        #   return(z)
+        # }, simplify = FALSE)
 
         max_per_row_prob <- apply(tmp_per_part, 1, max)
         max_per_row_ind_prob <- apply(tmp_per_part, 1, which.max)
+        #}
         # are all max in smallest set?
         indices_per_row <- colnames(all_raw_bound)[max_per_row_ind_prob]
         n_as_per_win_idx <- sapply(indices_per_row, function(full_name){
@@ -497,6 +547,7 @@ get_mle <- function(branches,
           gg <- strsplit(ff, "_")[[1]]
           return(length(gg))
         })
+
         if(all(n_as_per_win_idx > n_to_permute)){ #if all best set are not in the smallest set, exit while loop
           p_last <- FALSE
           # also update br_max_lik matrix
