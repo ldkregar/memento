@@ -170,7 +170,17 @@ set_memento_settings <- function(new_number_of_states = NULL,
     cat("New Q matrix, but df_rate is NULL")
   }
   if(!is.null(new_use_ff)){
-    the$use_ff <- new_use_ff
+    if(new_use_ff){ # if TRUE
+      if (rlang::is_installed("HDF5Array") &
+          rlang::is_installed("S4Arrays") &
+          rlang::is_installed("DelayedArray")) {
+        the$use_ff <- new_use_ff
+      } else {
+        message("To use ff functionalities, you must install HDF5Array, S4Arrays and DelayedArray")
+      }
+    }else{ # if FALSE - do not require additional libraries
+      the$use_ff <- new_use_ff
+    }
   }
   invisible(old_num_states)
 }
@@ -208,5 +218,9 @@ set_memento_settings_to_default <- function(){
   the$Q <- getQMatrix(the$df_rate)
   the$useQ <- FALSE
   the$use_ff <- FALSE
+}
+
+ignore_unused_imports <- function() {
+  HDF5Array::H5ADMatrix
 }
 
