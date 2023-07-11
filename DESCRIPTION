@@ -14,17 +14,20 @@ LazyData: true
 Imports: 
     ape,
     data.table (>= 1.9.8),
+    DelayedArray,
     DescTools,
     dplyr,
     expm,
-    ff,
     ggplot2,
     ggtree,
     hash,
+    HDF5Array,
     matrixcalc,
+    methods,
     phangorn,
     phytools,
     plyr,
+    S4Arrays,
     tidytree
 Suggests: 
     knitr,
