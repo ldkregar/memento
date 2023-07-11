@@ -14,25 +14,26 @@ LazyData: true
 Imports: 
     ape,
     data.table (>= 1.9.8),
-    DelayedArray,
     DescTools,
     dplyr,
     expm,
     ggplot2,
     ggtree,
     hash,
-    HDF5Array,
     matrixcalc,
     methods,
     phangorn,
     phytools,
     plyr,
-    S4Arrays,
+    rlang,
     tidytree
 Suggests: 
+    DelayedArray,
+    HDF5Array,
     knitr,
     optparse,
     rmarkdown,
+    S4Arrays,
     testthat (>= 3.0.0)
 LinkingTo: Rcpp, RcppEigen
 Config/testthat/edition: 3
