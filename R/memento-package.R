@@ -13,5 +13,6 @@
 #' @importFrom dplyr full_join
 #' @importFrom ggplot2 aes
 #' @importFrom ggplot2 element_text
+#' @importFrom methods as
 ## usethis namespace: end
 NULL
