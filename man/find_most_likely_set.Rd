@@ -21,7 +21,8 @@ find_most_likely_set(
   u_mtx = NULL,
   mtx_list = NULL,
   verbose = TRUE,
-  delete_matrices_from_hash = TRUE
+  delete_matrices_from_hash = TRUE,
+  priors_per_branch = NULL
 )
 }
 \arguments{
@@ -58,6 +59,8 @@ find_most_likely_set(
 \item{verbose}{logical whether to print messages}
 
 \item{delete_matrices_from_hash}{logical whether to remove raw probability matrices from hash table}
+
+\item{priors_per_branch}{custom priors per branch}
 }
 \value{
 data.table of final assignments
