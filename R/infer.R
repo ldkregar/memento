@@ -638,6 +638,7 @@ get_mle <- function(branches,
 #' @param mtx_list list of phased methylated and unmethylated reads
 #' @param verbose logical whether to print messages
 #' @param delete_matrices_from_hash logical whether to remove raw probability matrices from hash table
+#' @param priors_per_branch custom priors per branch
 #'
 #' @return data.table of final assignments
 #' @export
@@ -664,7 +665,8 @@ find_most_likely_set <- function(dt_pre,
                                  u_mtx = NULL,
                                  mtx_list = NULL,
                                  verbose = TRUE,
-                                 delete_matrices_from_hash = TRUE){
+                                 delete_matrices_from_hash = TRUE,
+                                 priors_per_branch = NULL){
   chr_pos = combined_branch = Chrom = Pos = NULL
   if(all(is.na(gamma)  & is.na(delta))){
     stopifnot("Must provide gamma and delta or ro values." = !is.na(ro))
@@ -679,54 +681,55 @@ find_most_likely_set <- function(dt_pre,
   })
 
   the$global_hash_list <- hash::hash(assignment_space, vector("list", length = length(assignment_space)))
+  if(is.null(priors_per_branch)){
+    totsnvs=sum(full_tree$edge.length)
+    tottime=totsnvs/20
+    weighted_branch_lenghts <- tottime* full_tree$edge.length/sum(full_tree$edge.length)
 
-  totsnvs=sum(full_tree$edge.length)
-  tottime=totsnvs/20
-  weighted_branch_lenghts <- tottime* full_tree$edge.length/sum(full_tree$edge.length)
-
-  if(is.null(epi_fwd) & is.null(epi_bck)){
-    epi_mut_rate_fwd <- the$epi_fwd*the$human.snv.rate.per.base #human.epi.rate.per.cpg
-    epi_mut_rate_bck <- the$epi_bck*the$human.snv.rate.per.base #human.epi.rate.per.cpg
-  }else{
-    cat("Using custom forward and backward transition rates.\n")
-    epi_mut_rate_fwd <- epi_fwd*the$human.snv.rate.per.base #human.epi.rate.per.cpg
-    epi_mut_rate_bck <- epi_bck*the$human.snv.rate.per.base #human.epi.rate.per.cpg
-  }
-
-  if(is.null(Q_mtx)){
-    Q_mtx <- the$Q
-  }else{
-    cat("Using custom Q matrix")
-  }
-
-  if(the$useQ){
-    p_list <- lapply(weighted_branch_lenghts,
-                     getP,
-                     Q = Q_mtx)
-  }else{
-    if(the$number_of_states == 2){
-      p_list <- lapply(weighted_branch_lenghts,
-                       getP2,
-                       epi_mut_rate_bck = epi_mut_rate_bck,
-                       epi_mut_rate_fwd = epi_mut_rate_fwd)
-    }else if(the$number_of_states == 3){
-      p_list <- lapply(weighted_branch_lenghts,
-                       getP3,
-                       epi_mut_rate_bck = epi_mut_rate_bck,
-                       epi_mut_rate_fwd = epi_mut_rate_fwd)
-    }else if(the$number_of_states == 4){
-      p_list <- lapply(weighted_branch_lenghts,
-                       getP4,
-                       epi_mut_rate_bck = epi_mut_rate_bck,
-                       epi_mut_rate_fwd = epi_mut_rate_fwd)
+    if(is.null(epi_fwd) & is.null(epi_bck)){
+      epi_mut_rate_fwd <- the$epi_fwd*the$human.snv.rate.per.base #human.epi.rate.per.cpg
+      epi_mut_rate_bck <- the$epi_bck*the$human.snv.rate.per.base #human.epi.rate.per.cpg
+    }else{
+      cat("Using custom forward and backward transition rates.\n")
+      epi_mut_rate_fwd <- epi_fwd*the$human.snv.rate.per.base #human.epi.rate.per.cpg
+      epi_mut_rate_bck <- epi_bck*the$human.snv.rate.per.base #human.epi.rate.per.cpg
     }
-  }
 
-  p_vectors <- lapply(p_list, function(x){
-    y <- as.vector(t(x))
-    return(y)
-  })
-  priors_per_branch <- log(do.call("rbind", p_vectors))
+    if(is.null(Q_mtx)){
+      Q_mtx <- the$Q
+    }else{
+      cat("Using custom Q matrix")
+    }
+
+    if(the$useQ){
+      p_list <- lapply(weighted_branch_lenghts,
+                       getP,
+                       Q = Q_mtx)
+    }else{
+      if(the$number_of_states == 2){
+        p_list <- lapply(weighted_branch_lenghts,
+                         getP2,
+                         epi_mut_rate_bck = epi_mut_rate_bck,
+                         epi_mut_rate_fwd = epi_mut_rate_fwd)
+      }else if(the$number_of_states == 3){
+        p_list <- lapply(weighted_branch_lenghts,
+                         getP3,
+                         epi_mut_rate_bck = epi_mut_rate_bck,
+                         epi_mut_rate_fwd = epi_mut_rate_fwd)
+      }else if(the$number_of_states == 4){
+        p_list <- lapply(weighted_branch_lenghts,
+                         getP4,
+                         epi_mut_rate_bck = epi_mut_rate_bck,
+                         epi_mut_rate_fwd = epi_mut_rate_fwd)
+      }
+    }
+
+    p_vectors <- lapply(p_list, function(x){
+      y <- as.vector(t(x))
+      return(y)
+    })
+    priors_per_branch <- log(do.call("rbind", p_vectors))
+  }
 
   if(fraction_estimate < 1){
     warning(sprintf("You are only computing MLE on the first %i%% of sites, sorted from easiest.", round(fraction_estimate*100, digits = 0)))
