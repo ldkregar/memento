@@ -12,7 +12,8 @@ set_memento_settings(
   new_rates = NULL,
   new_Q = NULL,
   new_useQ = NULL,
-  new_use_ff = NULL
+  new_use_ff = NULL,
+  new_combs_list = NULL
 )
 }
 \arguments{
@@ -31,6 +32,8 @@ set_memento_settings(
 \item{new_useQ}{logical whether to use Q matrix}
 
 \item{new_use_ff}{logical whether to use ff for matrix multiplication instead of cpp}
+
+\item{new_combs_list}{supply a new combinations list manually}
 }
 \description{
 Set memento settings
