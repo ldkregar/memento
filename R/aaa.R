@@ -115,6 +115,7 @@ memento_settings <- function() {
 #' @param new_Q new Q matrix
 #' @param new_useQ logical whether to use Q matrix
 #' @param new_use_ff logical whether to use ff for matrix multiplication instead of cpp
+#' @param new_combs_list supply a new combinations list manually
 #'
 #' @export
 set_memento_settings <- function(new_number_of_states = NULL,
@@ -124,7 +125,8 @@ set_memento_settings <- function(new_number_of_states = NULL,
                                  new_rates = NULL,
                                  new_Q = NULL,
                                  new_useQ = NULL,
-                                 new_use_ff = NULL){
+                                 new_use_ff = NULL,
+                                 new_combs_list = NULL){
   old_num_states <- the$number_of_states
   if(!is.null(new_number_of_states)){
     the$number_of_states <- new_number_of_states
@@ -181,6 +183,9 @@ set_memento_settings <- function(new_number_of_states = NULL,
     }else{ # if FALSE - do not require additional libraries
       the$use_ff <- new_use_ff
     }
+  }
+  if(!is.null(new_combs_list)){
+    the$change_combs_list <- new_combs_list
   }
   invisible(old_num_states)
 }
