@@ -76,6 +76,12 @@ compute_probabilities <- function(priors_per_tree,
     all_sites <- rownames(m_reads_matrix)
     methcount = m_reads_matrix
     wtcount = u_reads_matrix
+    #if(mode(methcount) != "numeric"){
+    mode(methcount) <- "numeric"
+    #}
+    #if(mode(wtcount) != "numeric"){
+    mode(wtcount) <- "numeric"
+    #}
   }else{
     nsites=dim(matrix_list[[1]])[1]
     all_sites=rownames(matrix_list[[1]])
@@ -145,17 +151,17 @@ compute_probabilities <- function(priors_per_tree,
       }
 
       c_vec <- rep(c, ncol(methcount))
-      tmp1 <- sweep(methcount, 2, a, "*")
-      tmp2 <- sweep(wtcount, 2, b, "*")
-      tmp3 <- sweep((methcount + wtcount), 2, c_vec, "*")
-      tmp4 <- sweep(methcount, 2, b, "*")
-      tmp5 <- sweep(wtcount, 2, a, "*")
+      # tmp1_s <- sweep(methcount, 2, a, "*")
+      # tmp2_s <- sweep(wtcount, 2, b, "*")
+      # tmp3_s <- sweep((methcount + wtcount), 2, c_vec, "*")
+      # tmp4_s <- sweep(methcount, 2, b, "*")
+      # tmp5_s <- sweep(wtcount, 2, a, "*")
 
-      # tmp1 <- Rfast::eachrow(methcount, a, "*")
-      # tmp2 <- Rfast::eachrow(wtcount, b, "*")
-      # tmp3 <- Rfast::eachrow((methcount + wtcount), c_vec, "*")
-      # tmp4 <- Rfast::eachrow(methcount, b, "*")
-      # tmp5 <- Rfast::eachrow(wtcount, a, "*")
+      tmp1 <- Rfast::eachrow(methcount, a, "*")
+      tmp2 <- Rfast::eachrow(wtcount, b, "*")
+      tmp3 <- Rfast::eachrow((methcount + wtcount), c_vec, "*")
+      tmp4 <- Rfast::eachrow(methcount, b, "*")
+      tmp5 <- Rfast::eachrow(wtcount, a, "*")
 
       if(the$use_ff){
         # new_p <- (ff::as.ff(tmp1+tmp2))[] %*% (ff::as.ff(prep_gnt_tf[["3"]]))[] +
@@ -273,14 +279,14 @@ compute_probabilities <- function(priors_per_tree,
               }
             }
             # TODO: double check this is correct
-            # p_new = methods::as((Rfast::eachrow(methcount, a, "*") + Rfast::eachrow(wtcount, b, "*")), "HDF5Matrix") %*%
-            #                       methods::as(prep_gnt_tf[["2"]], "HDF5Matrix") +
-            #   methods::as((Rfast::eachrow(methcount, b, "*")+Rfast::eachrow(wtcount, a, "*")), "HDF5Matrix") %*%
-            #   methods::as(prep_gnt_tf[["1"]], "HDF5Matrix")
-            p_new = methods::as((sweep(methcount, 2, a, "*") + sweep(wtcount, 2, b, "*")), "HDF5Matrix") %*%
-              methods::as(prep_gnt_tf[["2"]], "HDF5Matrix") +
-              methods::as((sweep(methcount, 2, b, "*")+sweep(wtcount, 2, a, "*")), "HDF5Matrix") %*%
+            p_new = methods::as((Rfast::eachrow(methcount, a, "*") + Rfast::eachrow(wtcount, b, "*")), "HDF5Matrix") %*%
+                                  methods::as(prep_gnt_tf[["2"]], "HDF5Matrix") +
+              methods::as((Rfast::eachrow(methcount, b, "*")+Rfast::eachrow(wtcount, a, "*")), "HDF5Matrix") %*%
               methods::as(prep_gnt_tf[["1"]], "HDF5Matrix")
+            # p_new = methods::as((sweep(methcount, 2, a, "*") + sweep(wtcount, 2, b, "*")), "HDF5Matrix") %*%
+            #   methods::as(prep_gnt_tf[["2"]], "HDF5Matrix") +
+            #   methods::as((sweep(methcount, 2, b, "*")+sweep(wtcount, 2, a, "*")), "HDF5Matrix") %*%
+            #   methods::as(prep_gnt_tf[["1"]], "HDF5Matrix")
             p <- p_new
           }
         }else{
@@ -302,10 +308,10 @@ compute_probabilities <- function(priors_per_tree,
               }
             }
             # TODO: double check this is correct
-            # p_new <- eigenMapMatMult2((Rfast::eachrow(methcount, a, "*") + Rfast::eachrow(wtcount, b, "*")), prep_gnt_tf[["2"]]) +
-            #   eigenMapMatMult2((Rfast::eachrow(methcount, b, "*")+Rfast::eachrow(wtcount, a, "*")), prep_gnt_tf[["1"]])
-            p_new <- eigenMapMatMult2((sweep(methcount, 2, a, "*") + sweep(wtcount, 2, b, "*")), prep_gnt_tf[["2"]]) +
-              eigenMapMatMult2((sweep(methcount, 2, b, "*")+sweep(wtcount, 2, a, "*")), prep_gnt_tf[["1"]])
+            p_new <- eigenMapMatMult2((Rfast::eachrow(methcount, a, "*") + Rfast::eachrow(wtcount, b, "*")), prep_gnt_tf[["2"]]) +
+              eigenMapMatMult2((Rfast::eachrow(methcount, b, "*")+Rfast::eachrow(wtcount, a, "*")), prep_gnt_tf[["1"]])
+            # p_new <- eigenMapMatMult2((sweep(methcount, 2, a, "*") + sweep(wtcount, 2, b, "*")), prep_gnt_tf[["2"]]) +
+            #   eigenMapMatMult2((sweep(methcount, 2, b, "*")+sweep(wtcount, 2, a, "*")), prep_gnt_tf[["1"]])
             p <- p_new
             }
           }
