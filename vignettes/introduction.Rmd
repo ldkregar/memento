@@ -54,12 +54,13 @@ colnames(meth_mtx) <- colnames(unmeth_mtx) <- gsub("PD40521_Normal_EM1_", "",
 range(tree$edge.length)
 ```
 
-The tree's branch lengths are in units of years (the individual's age). However, Memento assumes branch lengths represent the number of single nucleotide variants (SNVs). Assuming each cell acquires 20 SNVs per year, we rescale the branch lengths to correspond to that. To avoid zero-length branches, we convert the bifurcating tree to a polytomous one.
+The tree's branch lengths are in units of years (the individual's age). Memento allows you to input trees with branch lengths in units of years or number of SNVs. If the latter is true, set the boolean Memento setting tree_branch_is_snv to TRUE. Ensure the tree does not contain zero-length branches and convert the bifurcating tree to a polytomous one.
 
 ```{r rescale_poly, out.width="700px", out.height="700px", dpi = 300, fig.height=8, fig.width=8, fig.fullwidth=TRUE}
-tree$edge.length <- tree$edge.length*20
 tree_di <- tree
-tree <- di2multi(tree) # convert to polytomy
+if(any(tree$edge.length == 0)){
+  tree <- di2multi(tree) # convert to polytomy
+}
 tree
 {par(mar=rep(1, 4))
   plot.phylo(tree)
