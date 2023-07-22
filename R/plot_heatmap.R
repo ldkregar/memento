@@ -10,6 +10,7 @@
 #' @param df_col_meta data frame of colony metadata
 #' @param custom_title character
 #' @param custom_subtitle character
+#' @param highlight_additional_nodes numeric vector of nodes you wish to highlight in addition, will be coloured grey
 #'
 #' @return ggplot plot object
 #' @export
@@ -30,7 +31,8 @@ plot_heatmap <- function(assignment,
                          specific_positions = NULL,
                          df_col_meta = NULL,
                          custom_title = NULL,
-                         custom_subtitle = NULL){
+                         custom_subtitle = NULL,
+                         highlight_additional_nodes = NULL){
   branch = chr_pos = chrom_fct = Chrom = Pos = Affected = color = NULL
 
   full_dt_subset <- full_dt[branch == assignment,]
@@ -74,12 +76,15 @@ plot_heatmap <- function(assignment,
   full_dt_subset <- full_dt_subset[order(chrom_fct, Pos),]
   if(is.matrix(meth_rate_mtx)){
     pos_rates <- convert_to_matrix(meth_rate_mtx, full_dt_subset[["chr_pos"]])
-    pos_rates <- pos_rates[,match(colnames(pos_rates), tree$tip.label), drop=FALSE]
+    pos_rates <- pos_rates[,match(tree$tip.label, colnames(pos_rates)), drop=FALSE]
+    stopifnot(all(tree$tip.label == colnames(pos_rates)))
     pos_rates_flip <- t(pos_rates)
   }else if(is.list(meth_rate_mtx)){
     pos_rates_list <- lapply(meth_rate_mtx, convert_to_matrix, chr_pos = full_dt_subset[["chr_pos"]])
     pos_rates_list <- lapply(pos_rates_list, function(one){
-      return(t(one[, match(colnames(one), tree$tip.label), drop = FALSE]))
+      two <- one[, match(tree$tip.label, colnames(one)), drop = FALSE]
+      stopifnot(all(tree$tip.label == colnames(two)))
+      return(t(two))
     })
     pos_rates_mtx <- do.call("cbind", pos_rates_list)
     eg <- expand.grid(full_dt_subset[["chr_pos"]], names(pos_rates_list))
@@ -94,7 +99,7 @@ plot_heatmap <- function(assignment,
     # pos_rates_mtx <- pos_rates_mtx[,unlist(new_order)]
     pos_rates_flip <- pos_rates_mtx
   }
-
+  pos_rates_flip[is.nan(pos_rates_flip)] <- NA
   if(the$number_of_states == 2){
     conversion <- c(0, 1)
     names(conversion) <- as.character(c(1:2))
@@ -125,6 +130,9 @@ plot_heatmap <- function(assignment,
   if(the$number_of_states == 2){
     affected_tip_colors <- c("#313695", "#a50026")
     names(affected_tip_colors) <- as.factor(c(0, 1))
+
+    edge_change_colours <- c("#d73027", "#4575b4")
+    names(edge_change_colours) <- as.factor(c(2, 3))
   }else if(the$number_of_states == 3){
     affected_tip_colors <- c("#313695","#fdae61", "#a50026")
     names(affected_tip_colors) <- as.factor(c(0, 0.5, 1))
@@ -174,6 +182,13 @@ plot_heatmap <- function(assignment,
                    fill = edge_change_colours[edge_changes],
                    extend = 20,
                    alpha = 0.4)
+  }
+  if(!is.null(highlight_additional_nodes)){
+    p1 <- p1 +
+      ggtree::geom_hilight(node = highlight_additional_nodes,
+                           fill = "#808080",
+                           extend = 20,
+                           alpha = 0.4)
   }
   if(is.null(custom_title)){
     custom_title <-sprintf("Assigned to %s;\ntransition(s): %s, respectively;\nstarting state%s: %s",
