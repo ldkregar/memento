@@ -55,9 +55,11 @@ for(i in 1:length(mtx_list)){
 
 range(tree$edge.length)
 
-tree$edge.length <- tree$edge.length*20
+#tree$edge.length <- tree$edge.length*20
 tree_di <- tree
-tree <- di2multi(tree) # convert to polytomy
+if(any(tree$edge.length == 0)){
+  tree <- di2multi(tree) # convert to polytomy
+}
 tree
 ```
 Update settings to four states.
