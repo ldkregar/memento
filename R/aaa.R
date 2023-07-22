@@ -1,6 +1,8 @@
 the <- new.env(parent = emptyenv())
 the$number_of_states <- 3
-the$human.snv.rate.per.base=20/3e9
+the$snv_rate_per_year <- 20
+the$num_bases_in_genome <- 3e9
+the$human.snv.rate.per.base<- the$snv_rate_per_year/the$num_bases_in_genome
 the$epi_fwd = 1e5
 the$epi_bck = 1e5
 the$all_possible_states <- c(1:the$number_of_states)
@@ -11,6 +13,7 @@ the$state_transition_mtx <- matrix(1:the$number_of_states**2,
 colnames(the$state_transition_mtx) <- rownames(the$state_transition_mtx) <- as.character(1:the$number_of_states)
 
 the$state_transition_vec_out <- rep(c(1:the$number_of_states), the$number_of_states)
+the$tree_branch_is_snv <- FALSE
 
 rebase <- function(b, base = 10){
   base <- as.integer(base)
@@ -40,21 +43,29 @@ add_padding <- function(v, new_length){
   return(v)
 }
 
-get_change_combinations_4s <- function(n_changes_){
-  possible_perm <- 1:((get("number_of_states", envir = the) -1)**n_changes_)-1
-  change_combination <- sapply(possible_perm, function(x){ rebase(x, (get("number_of_states", envir = the) -1))} )
-  last_item <- change_combination[[length(change_combination)]]
-  change_combination2 <- lapply(change_combination, add_padding, new_length = length(last_item))
-  change_combination <- do.call("rbind", change_combination2)
-  names_of_changes <- apply(change_combination, 1, function(x){
-    y <- as.character(x)
-    y[y == "0"] <- "A"
-    y[y == "1"] <- "B"
-    y[y == "2"] <- "C"
-    y[y == "3"] <- "D"
-    return(paste0(y, collapse = ""))
-  })
-  change_combination <- change_combination + 1 # this way you get indices
+get_change_combinations_4s <- function(n_changes_, ns = NULL){
+  if(is.null(ns)){
+    ns <- get("number_of_states", envir = the)
+  }
+  if(ns == 2 & n_changes_ != 0){
+    change_combination <- matrix(rep(1, n_changes_), ncol = n_changes_)
+    names_of_changes <- paste0(rep("A", n_changes_), collapse = "")
+  }else{
+    possible_perm <- 1:((ns-1)**n_changes_)-1
+    change_combination <- sapply(possible_perm, function(x){ rebase(x, (ns -1))} )
+    last_item <- change_combination[[length(change_combination)]]
+    change_combination2 <- lapply(change_combination, add_padding, new_length = length(last_item))
+    change_combination <- do.call("rbind", change_combination2)
+    names_of_changes <- apply(change_combination, 1, function(x){
+      y <- as.character(x)
+      y[y == "0"] <- "A"
+      y[y == "1"] <- "B"
+      y[y == "2"] <- "C"
+      y[y == "3"] <- "D"
+      return(paste0(y, collapse = ""))
+    })
+    change_combination <- change_combination + 1 # this way you get indices
+  }
   return(list("change_combinations" = change_combination,
               "names_of_changes" = names_of_changes))
 }
@@ -92,7 +103,6 @@ the$use_ff <- FALSE
 #' @export
 memento_settings <- function() {
   return(list("number_of_states" = the$number_of_states,
-              "human.snv.rate.per.base" = the$human.snv.rate.per.base,
               "epi_fwd" = the$epi_fwd,
               "epi_bck" = the$epi_bck,
               "all_possible_states" = the$all_possible_states,
@@ -102,13 +112,18 @@ memento_settings <- function() {
               "df_rate" = the$df_rate,
               "Q" = the$Q,
               "useQ" = the$useQ,
-              "use_ff" = the$use_ff))
+              "use_ff" = the$use_ff,
+              "tree_branch_is_snv" = the$tree_branch_is_snv,
+              "snv_rate_per_year" = the$snv_rate_per_year,
+              "num_bases_in_genome" = the$num_bases_in_genome,
+              "human.snv.rate.per.base" = the$human.snv.rate.per.base))
 }
+
+## @param human.snv.rate.per.base human snv rate per base (usually 20/3e9)
 
 #' Set memento settings
 #'
 #' @param new_number_of_states integer value for number of states: 3 or 4 (requires phased data)
-#' @param human.snv.rate.per.base human snv rate per base (usually 20/3e9)
 #' @param new_epi_fwd numeric value for forward rate (gain of methylation): scales the human SNV rate, e.g. 1e5 times greater than SNV rate per base
 #' @param new_epi_bck numeric value for backward rate (loss of methylation): scales the human SNV rate
 #' @param new_rates data.frame of new rates
@@ -116,17 +131,23 @@ memento_settings <- function() {
 #' @param new_useQ logical whether to use Q matrix
 #' @param new_use_ff logical whether to use ff for matrix multiplication instead of cpp
 #' @param new_combs_list supply a new combinations list manually
+#' @param new_tree_branch_is_snv logical whether tree branch lengths are in SNVs
+#' @param new_snv_rate_per_year numeric number of SNVs per year (usually 20)
+#' @param new_num_bases_in_genome numeric number of bases in genome (3e9 for human)
 #'
 #' @export
 set_memento_settings <- function(new_number_of_states = NULL,
-                                 human.snv.rate.per.base = NULL,
+                                 #human.snv.rate.per.base = NULL,
                                  new_epi_fwd = NULL,
                                  new_epi_bck = NULL,
                                  new_rates = NULL,
                                  new_Q = NULL,
                                  new_useQ = NULL,
                                  new_use_ff = NULL,
-                                 new_combs_list = NULL){
+                                 new_combs_list = NULL,
+                                 new_tree_branch_is_snv = NULL,
+                                 new_snv_rate_per_year = NULL,
+                                 new_num_bases_in_genome = NULL){
   old_num_states <- the$number_of_states
   if(!is.null(new_number_of_states)){
     the$number_of_states <- new_number_of_states
@@ -140,7 +161,7 @@ set_memento_settings <- function(new_number_of_states = NULL,
     the$state_transition_vec_out <- rep(c(1:the$number_of_states), the$number_of_states)
 
     the$change_combs_list <- lapply(c(0:10), function(nc){
-      cc <- get_change_combinations_4s(nc)
+      cc <- get_change_combinations_4s(nc, ns = new_number_of_states)
       return(cc)
     })
     names(the$change_combs_list) <- as.character(0:(length(the$change_combs_list)-1))
@@ -150,9 +171,9 @@ set_memento_settings <- function(new_number_of_states = NULL,
     the$Q <- getQMatrix(the$df_rate)
   }
 
-  if(!is.null(human.snv.rate.per.base)){
-    the$human.snv.rate.per.base <- human.snv.rate.per.base
-  }
+  # if(!is.null(human.snv.rate.per.base)){
+  #   the$human.snv.rate.per.base <- human.snv.rate.per.base
+  # }
   if(!is.null(new_epi_fwd)){
     the$epi_fwd <- new_epi_fwd
   }
@@ -187,6 +208,18 @@ set_memento_settings <- function(new_number_of_states = NULL,
   if(!is.null(new_combs_list)){
     the$change_combs_list <- new_combs_list
   }
+  if(!is.null(new_tree_branch_is_snv)){
+    the$tree_branch_is_snv <- new_tree_branch_is_snv
+  }
+  if(!is.null(new_snv_rate_per_year)){
+    the$snv_rate_per_year <- new_snv_rate_per_year
+    the$human.snv.rate.per.base<- the$snv_rate_per_year/the$num_bases_in_genome
+  }
+  if(!is.null(new_num_bases_in_genome)){
+    the$num_bases_in_genome <- new_num_bases_in_genome
+    the$human.snv.rate.per.base<- the$snv_rate_per_year/the$num_bases_in_genome
+  }
+
   invisible(old_num_states)
 }
 
@@ -199,9 +232,12 @@ set_memento_settings <- function(new_number_of_states = NULL,
 #' memento_settings()
 set_memento_settings_to_default <- function(){
   the$number_of_states <- 3
-  the$human.snv.rate.per.base=20/3e9
+  # the$human.snv.rate.per.base=20/3e9
   the$epi_fwd = 1e5
   the$epi_bck = 1e5
+  the$snv_rate_per_year <- 20
+  the$num_bases_in_genome <- 3e9
+  the$human.snv.rate.per.base<- the$snv_rate_per_year/the$num_bases_in_genome
   the$all_possible_states <- c(1:the$number_of_states)
   the$state_transition_mtx <- matrix(1:the$number_of_states**2,
                                      the$number_of_states,
@@ -223,6 +259,7 @@ set_memento_settings_to_default <- function(){
   the$Q <- getQMatrix(the$df_rate)
   the$useQ <- FALSE
   the$use_ff <- FALSE
+  the$tree_branch_is_snv <- FALSE
 }
 
 ignore_unused_imports <- function() {
