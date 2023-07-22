@@ -246,6 +246,8 @@ generate_genotypes <- function(a_t,
   return(desc_per_changes)
 }
 
+## @param tree_branches_are_snv logical: whether tree branches in SNVs or years
+
 #' Generate priors for each tree
 #'
 #' @param all_trees list of "phylo" objects
@@ -271,6 +273,7 @@ generate_priors <- function(full_tree,
                             epi_bck = NULL,
                             Q_mtx = NULL,
                             m = 2,
+                            #tree_branches_are_snv = TRUE,
                             verbose = TRUE){
   if(is.null(all_trees)){
     all_trees <- list("root" = full_tree)
@@ -292,7 +295,11 @@ generate_priors <- function(full_tree,
     permuts <- generate_permutations(n_branches, m = current_m) # possible permutations of changes given tree
     stopifnot(all(unname(table(rowSums(permuts))) == sapply(0:current_m, choose, n = n_branches)))
     totsnvs=sum(one_tree$edge.length)
-    tottime=totsnvs/20
+    if(the$tree_branch_is_snv){
+      tottime=totsnvs/the$snv_rate_per_year
+    }else{
+      tottime=totsnvs
+    }
     weighted_branch_lenghts <- tottime* one_tree$edge.length/sum(one_tree$edge.length)
 
     ##  rates expressed as per cpg per year
@@ -366,7 +373,7 @@ generate_priors <- function(full_tree,
 
     affected_tips <- mapply(map_branch_changes_to_affected_tips_hemi,
                             pr = priors,
-                            tree_ = one_tree_aslist)
+                            tree_ = one_tree_aslist, SIMPLIFY = FALSE)
     if(is.list(affected_tips)){
       genotype_vectors <- lapply(affected_tips,
                                  generate_genotypes,
