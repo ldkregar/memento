@@ -14,7 +14,8 @@ plot_heatmap(
   specific_positions = NULL,
   df_col_meta = NULL,
   custom_title = NULL,
-  custom_subtitle = NULL
+  custom_subtitle = NULL,
+  highlight_additional_nodes = NULL
 )
 }
 \arguments{
@@ -37,6 +38,8 @@ plot_heatmap(
 \item{custom_title}{character}
 
 \item{custom_subtitle}{character}
+
+\item{highlight_additional_nodes}{numeric vector of nodes you wish to highlight in addition, will be coloured grey}
 }
 \value{
 ggplot plot object
