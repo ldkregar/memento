@@ -22,7 +22,8 @@ find_most_likely_set(
   mtx_list = NULL,
   verbose = TRUE,
   delete_matrices_from_hash = TRUE,
-  priors_per_branch = NULL
+  priors_per_branch = NULL,
+  max_loops = NULL
 )
 }
 \arguments{
@@ -61,6 +62,8 @@ find_most_likely_set(
 \item{delete_matrices_from_hash}{logical whether to remove raw probability matrices from hash table}
 
 \item{priors_per_branch}{custom priors per branch}
+
+\item{max_loops}{integer maximum number of branches to drop when permuting candidate branches}
 }
 \value{
 data.table of final assignments
