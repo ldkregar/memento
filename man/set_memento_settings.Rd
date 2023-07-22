@@ -6,20 +6,20 @@
 \usage{
 set_memento_settings(
   new_number_of_states = NULL,
-  human.snv.rate.per.base = NULL,
   new_epi_fwd = NULL,
   new_epi_bck = NULL,
   new_rates = NULL,
   new_Q = NULL,
   new_useQ = NULL,
   new_use_ff = NULL,
-  new_combs_list = NULL
+  new_combs_list = NULL,
+  new_tree_branch_is_snv = NULL,
+  new_snv_rate_per_year = NULL,
+  new_num_bases_in_genome = NULL
 )
 }
 \arguments{
 \item{new_number_of_states}{integer value for number of states: 3 or 4 (requires phased data)}
-
-\item{human.snv.rate.per.base}{human snv rate per base (usually 20/3e9)}
 
 \item{new_epi_fwd}{numeric value for forward rate (gain of methylation): scales the human SNV rate, e.g. 1e5 times greater than SNV rate per base}
 
@@ -34,6 +34,12 @@ set_memento_settings(
 \item{new_use_ff}{logical whether to use ff for matrix multiplication instead of cpp}
 
 \item{new_combs_list}{supply a new combinations list manually}
+
+\item{new_tree_branch_is_snv}{logical whether tree branch lengths are in SNVs}
+
+\item{new_snv_rate_per_year}{numeric number of SNVs per year (usually 20)}
+
+\item{new_num_bases_in_genome}{numeric number of bases in genome (3e9 for human)}
 }
 \description{
 Set memento settings
