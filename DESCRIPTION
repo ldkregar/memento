@@ -25,6 +25,7 @@ Imports:
     phangorn,
     phytools,
     plyr,
+    Rfast,
     rlang,
     tidytree
 Suggests: 
