@@ -2,7 +2,7 @@
 % Please edit documentation in R/utils.R
 \name{convert_sub_to_full_tree_branches}
 \alias{convert_sub_to_full_tree_branches}
-\title{Title}
+\title{Convert sub tree solution to full tree}
 \usage{
 convert_sub_to_full_tree_branches(
   assignments,
@@ -24,7 +24,7 @@ convert_sub_to_full_tree_branches(
 data.table of assignments for the full tree
 }
 \description{
-Title
+Convert sub tree solution to full tree
 }
 \examples{
 \dontrun{
