@@ -1,3 +1,21 @@
+get_df_depth_mm <- function(mtx_list, chr_pos){
+  depth_mtx <- mtx_list$meth_mtx + mtx_list$unmeth_mtx
+  mm_mtx <- mtx_list$meth_mtx
+
+  depth_df <- depth_mtx[chr_pos,,drop=FALSE]
+  meth_df <- mm_mtx[chr_pos,,drop=FALSE]
+
+  stopifnot(all(colnames(depth_df) == colnames(meth_df)))
+
+  hello <- data.frame(label = colnames(depth_df),
+                      id = colnames(depth_df),
+                      meth_r = meth_df[1,],
+                      depth = depth_df[1,])
+  return(hello)
+}
+
+
+
 #' Plot heatmap of assignments on sites
 #'
 #' @param assignment character: an assignment, branch.start_state:state_changes
@@ -11,6 +29,9 @@
 #' @param custom_title character
 #' @param custom_subtitle character
 #' @param highlight_additional_nodes numeric vector of nodes you wish to highlight in addition, will be coloured grey
+#' @param show_bar logical: if you would like to plot a bar chart for just 1 site, requires meth_reads_list
+#' @param meth_reads_list list of methlyated and unmethylated read counts
+#' @param meth_reads_df data frame of methlyated and unmethylated read counts
 #'
 #' @return ggplot plot object
 #' @export
@@ -32,8 +53,12 @@ plot_heatmap <- function(assignment,
                          df_col_meta = NULL,
                          custom_title = NULL,
                          custom_subtitle = NULL,
-                         highlight_additional_nodes = NULL){
+                         highlight_additional_nodes = NULL,
+                         show_bar = FALSE,
+                         meth_reads_list = NULL,
+                         meth_reads_df = NULL){
   branch = chr_pos = chrom_fct = Chrom = Pos = Affected = color = NULL
+  text1 = label = meth_r = depth = rate = NULL
 
   full_dt_subset <- full_dt[branch == assignment,]
 
@@ -197,25 +222,98 @@ plot_heatmap <- function(assignment,
                            ifelse(the$number_of_states == 4, " (MP)", ""),
                            as.character(ss))
   }
-  p3 <- suppressMessages(ggtree::gheatmap(p1,
-                     data=pos_rates_flip,
-                     offset = 30,
-                     # offset = ifelse(donor_id == "KX004", ifelse(include_tip_labels, 180, 30), 30)
-                     colnames_angle=45,
-                     hjust = 1,
-                     color=NA,
-                     font.size = 2) +
-      ggtree::scale_x_ggtree() +
-      ggtree::vexpand(.1, -1) +
-      ggplot2::scale_fill_gradient2(low = "#313695",
-                                    mid = "#ffffbf",
-                                    high = "#a50026",
-                                    midpoint = 0.5,
-                                    name = "Methylation\nratio",
-                                    limits = c(0,1)) +
-      ggplot2::theme(plot.title = element_text(hjust = 0.5, size = 16),
-                     plot.subtitle = element_text(size = 12, hjust = 0.5)) +
-      ggplot2::ggtitle(label = custom_title,
-                       subtitle = custom_subtitle))
+
+  if(only_branch != "n" | !is.null(highlight_additional_nodes)){
+    p1_tmp <- p1
+    if(!exists("nodes")){
+      nodes <- c()
+    }
+    if(!exists("highlight_additional_nodes")){
+      highlight_additional_nodes <- c()
+    }
+    all_nodes <- c(highlight_additional_nodes, nodes)
+    associated_edges <- match(all_nodes, tree$edge[,2])
+    names(all_nodes) <- as.character(associated_edges)
+    p1_tmp$data$text1 <- names(all_nodes)[match(p1_tmp$data$node, all_nodes)]
+    p1 <- p1_tmp + ggtree::geom_nodelab(geom='label', aes(label = text1), node = "all", size = 2)
+  }
+
+  if(show_bar){
+    if(nrow(full_dt_subset) > 1){
+      cat("Will sample random site to plot\n")
+      full_dt_subset <- full_dt_subset[sample(1:nrow(full_dt_subset), size = 1)]
+    }
+
+    if(is.null(meth_reads_list) & is.null(meth_reads_df)){
+      stop("Must provide dataframe or list of methylated and unmethylated read counts")
+    }else{
+      if(!is.null(meth_reads_df)){
+        df_bar <- meth_reads_df
+        # meth_reads_list = NULL,
+        # meth_reads_df = NULL
+      }else{
+        onesite <- full_dt_subset$chr_pos
+        df_bar <- get_df_depth_mm(mtx_list = meth_reads_list,
+                                  chr_pos = onesite)
+      }
+      df_bar <- df_bar[match(tree$tip.label, df_bar$label),]
+      df_bar$label <- factor(df_bar$label,
+                             levels = tree$tip.label,
+                             ordered = TRUE)
+      df_bar$rate <- df_bar$meth_r/df_bar$depth
+
+      p2 <- ggplot2::ggplot(df_bar, aes(label, meth_r)) +
+        ggplot2::geom_col() +
+        ggplot2::coord_flip()
+      p2_depth <- ggplot2::ggplot(df_bar, aes(label, depth)) +
+        ggplot2::geom_col() +
+        ggplot2::coord_flip()
+      p2_combined <- ggplot2::ggplot(df_bar, aes(x = label)) +
+        ggplot2::geom_col(aes(y = depth), position = "identity", fill = "#bdbdbd") +
+        ggplot2::geom_col(aes(y = meth_r, fill = rate), position = "identity") +
+        ggplot2::scale_fill_gradient2(low = "#313695",
+                                      mid = "#ffffbf",
+                                      high = "#a50026",
+                                      midpoint = 0.5,
+                                      name = "Methylation\nratio",
+                                      limits = c(0,1)) +
+        ggplot2::labs(y = sprintf("%s: Read count (methylated overlaid on depth)", onesite)) +
+        ggplot2::coord_flip() +
+        ggplot2::theme_bw() +
+        ggplot2::theme(axis.text.y = ggplot2::element_blank(),
+              axis.ticks.y = ggplot2::element_blank(),
+              axis.title.y = ggplot2::element_blank())
+
+      p3_int <- p2_combined %>% aplot::insert_left(p1)
+
+      p3 <- aplot::plot_list(p3_int) + patchwork::plot_annotation(title = custom_title,
+                                                subtitle = custom_subtitle,
+                                                theme = ggplot2::theme(plot.title = element_text(hjust = 0.5, size = 16),
+                                                              plot.subtitle = element_text(hjust = 0.5, size = 12)))
+    }
+  }else{
+    p3 <- suppressMessages(ggtree::gheatmap(p1,
+                                            data=pos_rates_flip,
+                                            offset = 30,
+                                            # offset = ifelse(donor_id == "KX004", ifelse(include_tip_labels, 180, 30), 30)
+                                            colnames_angle=45,
+                                            hjust = 1,
+                                            color=NA,
+                                            font.size = 2) +
+                             ggtree::scale_x_ggtree() +
+                             ggtree::vexpand(.1, -1) +
+                             ggplot2::scale_fill_gradient2(low = "#313695",
+                                                           mid = "#ffffbf",
+                                                           high = "#a50026",
+                                                           midpoint = 0.5,
+                                                           name = "Methylation\nratio",
+                                                           limits = c(0,1)) +
+                             ggplot2::theme(plot.title = element_text(hjust = 0.5, size = 16),
+                                            plot.subtitle = element_text(size = 12, hjust = 0.5)) +
+                             ggplot2::ggtitle(label = custom_title,
+                                              subtitle = custom_subtitle))
+  }
+
+
   return(p3)
 }
