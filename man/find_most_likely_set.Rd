@@ -23,7 +23,9 @@ find_most_likely_set(
   verbose = TRUE,
   delete_matrices_from_hash = TRUE,
   priors_per_branch = NULL,
-  max_loops = NULL
+  max_loops = NULL,
+  site_specific = TRUE,
+  force_starting_state = FALSE
 )
 }
 \arguments{
@@ -64,6 +66,10 @@ find_most_likely_set(
 \item{priors_per_branch}{custom priors per branch}
 
 \item{max_loops}{integer maximum number of branches to drop when permuting candidate branches}
+
+\item{site_specific}{logical: if providing gammas & deltas, are they colony or site specific}
+
+\item{force_starting_state}{logical: should only certain start states be explored?}
 }
 \value{
 data.table of final assignments
