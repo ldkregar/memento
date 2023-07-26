@@ -15,7 +15,8 @@ compute_probabilities(
   verbose = TRUE,
   n_top_br = 2,
   hash_name = NA,
-  current_comb = NA
+  current_comb = NA,
+  site_specific = TRUE
 )
 }
 \arguments{
@@ -40,6 +41,8 @@ compute_probabilities(
 \item{hash_name}{character: name of current combination (only for mle step)}
 
 \item{current_comb}{only for mle step}
+
+\item{site_specific}{logical: if using gammas and deltas, are they site or colony specific?}
 }
 \value{
 data.table of probabilities and solutions
