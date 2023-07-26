@@ -109,6 +109,22 @@ convert_branches <- function(assignment_dts,
   return(dt_combined)
 }
 
+get_preliminary_solution <- function(dt_grouped, subtrees, full){
+  subtree_list <- subtrees[dt_grouped$sub_tree_id]
+  all_expected_tip_states <- mapply(generate_expected_tip_states,
+                                    ss = dt_grouped$starting_state,
+                                    changed_branches = dt_grouped$only_branch,
+                                    change_types = dt_grouped$branch_state,
+                                    tree = subtree_list)
+  names(all_expected_tip_states) <- names(subtree_list)
+  # find terminal tips
+  expected <- unlist(all_expected_tip_states)
+  names(expected) <- unlist(lapply(subtree_list, function(x) x$tip.label))
+
+  expected <- expected[match(full$tip.label, names(expected))]
+  return(expected)
+}
+
 extract_branches <- function(dt_grouped, full){
   sub_tree_id = starting_state = combined_branch = ss_combined = NULL
   original_branch <- dt_grouped[["original_branch"]]
@@ -155,8 +171,134 @@ extract_branches <- function(dt_grouped, full){
   return(dt_grouped)
 }
 
+get_proportion_of_reads <- function(tips_mtx, reads_mtx, depth_mtx){
+  # Estimate gamma as the proportion of unmethylated reads across sites with genotype=2
+  # Estimate delta as the proportion of methylated reads across sites with genotype=0
+  if(!all(rownames(reads_mtx) == rownames(tips_mtx))){
+    reads_mtx <- reads_mtx[match(rownames(tips_mtx), rownames(reads_mtx)),]
+  }
+  if(!all(rownames(reads_mtx) == rownames(depth_mtx))){
+    depth_mtx <- depth_mtx[match(rownames(reads_mtx), rownames(depth_mtx)),]
+  }
+  stopifnot(all(rownames(tips_mtx) == rownames(reads_mtx)) & all(rownames(tips_mtx) == rownames(depth_mtx)))
+  proportion <- sapply(1:nrow(tips_mtx), function(idx){
+    relevant_in_state <- reads_mtx[idx, tips_mtx[idx,]]
+    relevant_total <- depth_mtx[idx, tips_mtx[idx,]]
+    prop <- sum(relevant_in_state)/sum(relevant_total)
+    if(is.nan(prop)){
+      prop <- NA
+    }
+    return(prop)
+  })
+  names(proportion) <- rownames(tips_mtx)
+  return(proportion)
+}
 
-#' Title
+
+#' Impute gamma and delta vector with its rolling mean*
+#'
+#' This function will impute values of gamma and delta with a rolling average.
+#' The range can be specified. If adjacent sites have too many NAs, mean of
+#' entire vector will be used to fill. NB that the input vector must be sorted!
+#'
+#' @param gd_vector sorted vector of gammas or deltas per site
+#' @param range range of sites to consider, centered
+#' @param fillwith value to fill NAs with if rolling average doesn't have enough info; if NULL then mean of entire vector is used to fill
+#'
+#' @return vector of gamma and delta with imputed values
+#' @export
+#'
+#' @examples
+#' \dontrun{
+#' gd_imputed <- lapply(gd_per_site_sorted, impute_gamma_delta)
+#' }
+impute_gamma_delta <- function(gd_vector, range = 10, fillwith = NULL){
+  running = error = error_imp = NULL
+  gd_dt <- data.table::data.table(chr_pos = names(gd_vector),
+                                  error = gd_vector)
+  if(is.null(fillwith)){
+    fillwith <- mean(gd_vector, na.rm = TRUE)
+  }
+  gd_dt[, running := data.table::frollmean(x = error, n = range,
+                                           align = "center", na.rm = TRUE,
+                                           hasNA = TRUE, fill = fillwith)]
+  gd_dt[, error_imp := ifelse(is.na(error), running, error)]
+  gd_new <- gd_dt[["error_imp"]]
+  names(gd_new) <- gd_dt[["chr_pos"]]
+  return(gd_new)
+}
+
+
+#' Obtain gamma and delta values per site
+#'
+#' @param assignments list of preliminary assignments on each subtree
+#' @param subtrees list of subtrees (each list element is an ape phylo object)
+#' @param full_tree ape phylo object of f ull tree
+#' @param meth_matrix matrix of methylated reads
+#' @param unmeth_matrix matrix of unmethylated reads
+#'
+#' @return list of two vectors, gamma and delta
+#' @export
+#'
+#' @examples
+#' \dontrun{
+#' gd_per_site <- get_gamma_delta(assignments = assignments,
+#' subtrees = subtrees, full_tree = tree, meth_matrix = meth_mtx,
+#' unmeth_matrix = unmeth_mtx)
+#' }
+get_gamma_delta <- function(assignments,
+                            subtrees,
+                            full_tree,
+                            meth_matrix = NULL,
+                            unmeth_matrix = NULL){
+  dt_combined <- convert_branches(assignment_dts = assignments,
+                                  all_trees = subtrees,
+                                  full_tree_ = full_tree,
+                                  verbose1 = FALSE)
+  # filter to rank = 1
+  if("rank" %in% colnames(dt_combined)){
+    if(length(unique(dt_combined$rank)) > 1){
+      cat(sprintf("Rank column suggests there are several top solutions, filtering to rank = 1 only\n"))
+      dt_combined <- dt_combined[rank == 1,]
+    }
+  }
+
+  # combine across sites
+  combined_by_chr_pos <- split(dt_combined, by = "chr_pos")
+
+  preliminary_solutions <- lapply(combined_by_chr_pos,
+                                  get_preliminary_solution,
+                                  subtrees = subtrees,
+                                  full = full_tree)
+  prelim_s_mtx <- do.call("rbind", preliminary_solutions)
+  if(the$number_of_states < 4){
+    depth_matrix <- meth_matrix + unmeth_matrix
+
+    if(the$number_of_states == 2){
+      gamma_site <- get_proportion_of_reads(tips_mtx = prelim_s_mtx == 2,
+                                            reads_mtx = unmeth_matrix,
+                                            depth_mtx = depth_matrix)
+
+      delta_site <- get_proportion_of_reads(tips_mtx = prelim_s_mtx == 1,
+                                            reads_mtx = meth_matrix,
+                                            depth_mtx = depth_matrix)
+    }else if(the$number_of_states == 3){
+      gamma_site <- get_proportion_of_reads(tips_mtx = prelim_s_mtx == 3,
+                                            reads_mtx = unmeth_matrix,
+                                            depth_mtx = depth_matrix)
+
+      delta_site <- get_proportion_of_reads(tips_mtx = prelim_s_mtx == 1,
+                                            reads_mtx = meth_matrix,
+                                            depth_mtx = depth_matrix)
+    }
+  }else{
+    stop("Must implement for 4 states")
+  }
+  return(list("gamma" = gamma_site,
+              "delta" = delta_site))
+}
+
+#' Convert sub tree solution to full tree
 #'
 #' @param assignments List of assignments per subtree
 #' @param subtrees List of subtrees (each is "phylo" object)
@@ -214,7 +356,6 @@ convert_sub_to_full_tree_branches <- function(assignments,
       return(length(y))
     }
   })]
-
   return(branch_dt)
 }
 
