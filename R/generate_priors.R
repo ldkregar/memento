@@ -80,7 +80,8 @@ get_outcomes_per_change <- function(change_combination_list_,
                                     tree_,
                                     previous_edges,
                                     changes_on_branch,
-                                    mtx_of_children_local){
+                                    mtx_of_children_local,
+                                    force_starting_state = NULL){
   # with this function, you get indices of states per branch
   change_combination <- change_combination_list_$change_combinations
   names_of_changes <- change_combination_list_$names_of_changes
@@ -92,7 +93,11 @@ get_outcomes_per_change <- function(change_combination_list_,
 
   starting_states <- rep(the$all_possible_states, each = nrow(change_combination))
   temp_combs <- expand.grid(names_of_changes, the$all_possible_states)
-
+  if(!is.null(force_starting_state)){
+    indices <- temp_combs$Var2 %in% force_starting_state
+    temp_combs <- temp_combs[indices,]
+    change_results_new <- change_results_new[indices]
+  }
   for(j in 1:nrow(temp_combs)){
     # go through all changes on branches
     current_comb <- temp_combs[j,]
@@ -157,7 +162,8 @@ generate_priors_hemimeth <- function(changes_on_branch,
                                      # tree_ = tree,
                                      # priors_p_branch = priors_per_branch,
                                      priors_p_branch,
-                                     return_idx = FALSE){
+                                     return_idx = FALSE,
+                                     force_ss = NULL){
   # When a change happens, some edges will experience a fwd or back change,
   # but the rest will remain the same. Depending on change in an ancestor,
   # nodes will change their state.
@@ -183,7 +189,8 @@ generate_priors_hemimeth <- function(changes_on_branch,
                                                 tree_,
                                                 previous_edges,
                                                 changes_on_branch,
-                                                mtx_of_children_local = mtx_of_children_local_one)
+                                                mtx_of_children_local = mtx_of_children_local_one,
+                                                force_starting_state = force_ss)
 
   # submit state changes on branches and get sum of priors for both directions
   get_idx_from_both_starts <- lapply(change_results_new,
