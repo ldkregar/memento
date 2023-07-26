@@ -15,7 +15,10 @@ plot_heatmap(
   df_col_meta = NULL,
   custom_title = NULL,
   custom_subtitle = NULL,
-  highlight_additional_nodes = NULL
+  highlight_additional_nodes = NULL,
+  show_bar = FALSE,
+  meth_reads_list = NULL,
+  meth_reads_df = NULL
 )
 }
 \arguments{
@@ -40,6 +43,12 @@ plot_heatmap(
 \item{custom_subtitle}{character}
 
 \item{highlight_additional_nodes}{numeric vector of nodes you wish to highlight in addition, will be coloured grey}
+
+\item{show_bar}{logical: if you would like to plot a bar chart for just 1 site, requires meth_reads_list}
+
+\item{meth_reads_list}{list of methlyated and unmethylated read counts}
+
+\item{meth_reads_df}{data frame of methlyated and unmethylated read counts}
 }
 \value{
 ggplot plot object
