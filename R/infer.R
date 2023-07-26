@@ -12,6 +12,7 @@
 #' @param n_top_br integer: number of top branches to return
 #' @param hash_name character: name of current combination (only for mle step)
 #' @param current_comb only for mle step
+#' @param site_specific logical: if using gammas and deltas, are they site or colony specific?
 #'
 #' @return data.table of probabilities and solutions
 #' @export
@@ -31,7 +32,8 @@ compute_probabilities <- function(priors_per_tree,
                                   verbose = TRUE,
                                   n_top_br = 2,
                                   hash_name = NA,
-                                  current_comb = NA){
+                                  current_comb = NA,
+                                  site_specific = TRUE){
   chr_pos = branch = only_branch = starting_state = rank = n_assignments = Chrom = Pos = NULL
   if(length(priors_per_tree) == 1){
     only_one <- TRUE
@@ -88,11 +90,6 @@ compute_probabilities <- function(priors_per_tree,
     for(idx in 1:length(matrix_list)){
       mode(matrix_list[[idx]]) <- "numeric"
     }
-    # TODO: double check the above converts to numeric
-    # matrix_list <- lapply(matrix_list, function(ml){
-    #   mode(ml) <- "numeric"
-    #   return(ml)
-    # })
   }
 
   only_prior_values_1 <- unlist(branch_lengths, recursive = FALSE)
@@ -136,32 +133,48 @@ compute_probabilities <- function(priors_per_tree,
           eigenMapMatMult2((b*methcount+a*wtcount), prep_gnt_tf[["1"]])
       }
     }else{
-      if(any(is.null(names(a)) |
-              names(a) != colnames(methcount) |
-              names(a) != colnames(wtcount))){
-        stop("Names of gamma vector are missing or do not match names of meth or unmeth count matrices. Ensure gamma and delta values are ordered according to column names of meth/wt count matrix")
-      }else if(any(is.null(names(b)) |
-                   names(b) != colnames(methcount) |
-                   names(b) != colnames(wtcount))){
-        stop("Names of delta vector are missing or do not match names of meth or unmeth count matrices. Ensure gamma and delta values are ordered according to column names of the meth/wt count matrix")
+      if(site_specific){
+        if(length(a) > nrow(methcount)){
+          a <- a[match(rownames(methcount), names(a))]
+          b <- b[match(rownames(methcount), names(b))]
+        }
+        if(all(names(a) == names(b)) & all(names(a) == rownames(methcount)) & all(names(a) == rownames(wtcount))){
+          # transpose matrix so you can do eachrow next
+          methcount <- t(methcount)
+          wtcount <- t(wtcount)
+        }else{
+          stop("Ensure names of gamma and delta match rownames of methcount and wtcount")
+        }
       }else{
-        if(verbose){
-          cat("Names of gamma & delta match column names of meth/wt count matrix.\n")
+        if(any(is.null(names(a)) |
+               names(a) != colnames(methcount) |
+               names(a) != colnames(wtcount))){
+          stop("Names of gamma vector are missing or do not match names of meth or unmeth count matrices. Ensure gamma and delta values are ordered according to column names of meth/wt count matrix")
+        }else if(any(is.null(names(b)) |
+                     names(b) != colnames(methcount) |
+                     names(b) != colnames(wtcount))){
+          stop("Names of delta vector are missing or do not match names of meth or unmeth count matrices. Ensure gamma and delta values are ordered according to column names of the meth/wt count matrix")
+        }else{
+          if(verbose){
+            cat("Names of gamma & delta match column names of meth/wt count matrix.\n")
+          }
         }
       }
-
       c_vec <- rep(c, ncol(methcount))
-      # tmp1_s <- sweep(methcount, 2, a, "*")
-      # tmp2_s <- sweep(wtcount, 2, b, "*")
-      # tmp3_s <- sweep((methcount + wtcount), 2, c_vec, "*")
-      # tmp4_s <- sweep(methcount, 2, b, "*")
-      # tmp5_s <- sweep(wtcount, 2, a, "*")
 
       tmp1 <- Rfast::eachrow(methcount, a, "*")
       tmp2 <- Rfast::eachrow(wtcount, b, "*")
       tmp3 <- Rfast::eachrow((methcount + wtcount), c_vec, "*")
       tmp4 <- Rfast::eachrow(methcount, b, "*")
       tmp5 <- Rfast::eachrow(wtcount, a, "*")
+
+      if(site_specific){
+        tmp1 <- t(tmp1)
+        tmp2 <- t(tmp2)
+        tmp3 <- t(tmp3)
+        tmp4 <- t(tmp4)
+        tmp5 <- t(tmp5)
+      }
 
       if(the$use_ff){
         # new_p <- (ff::as.ff(tmp1+tmp2))[] %*% (ff::as.ff(prep_gnt_tf[["3"]]))[] +
@@ -213,48 +226,95 @@ compute_probabilities <- function(priors_per_tree,
 
           p <- state1 * a + state2 * b + state3 * c
         }else{
-          if(any(is.null(names(a)) |
-                 names(a) != colnames(matrix_list[[1]]) |
-                 names(a) != colnames(matrix_list[[1]]))){
-            stop("Names of gamma vector are missing or do not match names of meth or unmeth count matrices. Ensure gamma and delta values are ordered according to column names of meth/wt count matrix")
-          }else if(any(is.null(names(b)) |
-                       names(b) != colnames(matrix_list[[1]]) |
-                       names(b) != colnames(matrix_list[[1]]))){
-            stop("Names of delta vector are missing or do not match names of meth or unmeth count matrices. Ensure gamma and delta values are ordered according to column names of the meth/wt count matrix")
+          if(site_specific){
+            if(length(a) > nrow(matrix_list[[1]])){
+              a <- a[match(rownames(matrix_list[[1]]), names(a))]
+              b <- b[match(rownames(matrix_list[[1]]), names(b))]
+            }
+            if(all(names(a) == names(b)) & all(names(a) == rownames(matrix_list[[1]]))){
+              # transpose matrix so you can do eachrow next
+              matrix_list <- lapply(matrix_list, function(onem){
+                return(t(onem))
+              })
+            }else{
+              stop("Ensure names of gamma and delta match rownames of matrix_list matrices")
+            }
           }else{
-            if(verbose){
-              cat("Names of gamma & delta match column names of meth/wt count matrix.\n")
+            if(any(is.null(names(a)) |
+                   names(a) != colnames(matrix_list[[1]]) |
+                   names(a) != colnames(matrix_list[[1]]))){
+              stop("Names of gamma vector are missing or do not match names of meth or unmeth count matrices. Ensure gamma and delta values are ordered according to column names of meth/wt count matrix")
+            }else if(any(is.null(names(b)) |
+                         names(b) != colnames(matrix_list[[1]]) |
+                         names(b) != colnames(matrix_list[[1]]))){
+              stop("Names of delta vector are missing or do not match names of meth or unmeth count matrices. Ensure gamma and delta values are ordered according to column names of the meth/wt count matrix")
+            }else{
+              if(verbose){
+                cat("Names of gamma & delta match column names of meth/wt count matrix.\n")
+              }
             }
           }
+
           c_vec <- rep(c, ncol(matrix_list[[1]]))
           # sweep(methcount, 2, a, "*")
-          state1 <- eigenMapMatMult2(Rfast::eachrow(matrix_list[["MT_M"]], a, "*"), prep_gnt_tf[["4"]]) +
-            eigenMapMatMult2(Rfast::eachrow(matrix_list[["PT_M"]], a, "*"), prep_gnt_tf[["4"]]) +
-            eigenMapMatMult2(Rfast::eachrow(matrix_list[["U_M"]], a, "*"), prep_gnt_tf[["4"]]) +
-            eigenMapMatMult2(Rfast::eachrow(matrix_list[["MT_U"]], a, "*"), prep_gnt_tf[["2"]]) +
-            eigenMapMatMult2(Rfast::eachrow(matrix_list[["PT_M"]], a, "*"), prep_gnt_tf[["2"]]) +
-            eigenMapMatMult2(Rfast::eachrow(matrix_list[["PT_U"]], a, "*"), prep_gnt_tf[["3"]]) +
-            eigenMapMatMult2(Rfast::eachrow(matrix_list[["MT_M"]], a, "*"), prep_gnt_tf[["3"]]) +
-            eigenMapMatMult2(Rfast::eachrow(matrix_list[["MT_U"]], a, "*"), prep_gnt_tf[["1"]]) +
-            eigenMapMatMult2(Rfast::eachrow(matrix_list[["PT_U"]], a, "*"), prep_gnt_tf[["1"]]) +
-            eigenMapMatMult2(Rfast::eachrow(matrix_list[["U_U"]], a, "*"), prep_gnt_tf[["1"]])
+          if(site_specific){
+            state1 <- eigenMapMatMult2(t(Rfast::eachrow(matrix_list[["MT_M"]], a, "*")), prep_gnt_tf[["4"]]) +
+              eigenMapMatMult2(t(Rfast::eachrow(matrix_list[["PT_M"]], a, "*")), prep_gnt_tf[["4"]]) +
+              eigenMapMatMult2(t(Rfast::eachrow(matrix_list[["U_M"]], a, "*")), prep_gnt_tf[["4"]]) +
+              eigenMapMatMult2(t(Rfast::eachrow(matrix_list[["MT_U"]], a, "*")), prep_gnt_tf[["2"]]) +
+              eigenMapMatMult2(t(Rfast::eachrow(matrix_list[["PT_M"]], a, "*")), prep_gnt_tf[["2"]]) +
+              eigenMapMatMult2(t(Rfast::eachrow(matrix_list[["PT_U"]], a, "*")), prep_gnt_tf[["3"]]) +
+              eigenMapMatMult2(t(Rfast::eachrow(matrix_list[["MT_M"]], a, "*")), prep_gnt_tf[["3"]]) +
+              eigenMapMatMult2(t(Rfast::eachrow(matrix_list[["MT_U"]], a, "*")), prep_gnt_tf[["1"]]) +
+              eigenMapMatMult2(t(Rfast::eachrow(matrix_list[["PT_U"]], a, "*")), prep_gnt_tf[["1"]]) +
+              eigenMapMatMult2(t(Rfast::eachrow(matrix_list[["U_U"]], a, "*")), prep_gnt_tf[["1"]])
 
-          state2 <- eigenMapMatMult2(Rfast::eachrow(matrix_list[["MT_U"]], b, "*"), prep_gnt_tf[["4"]]) +
-            eigenMapMatMult2(Rfast::eachrow(matrix_list[["PT_U"]], b, "*"), prep_gnt_tf[["4"]]) +
-            eigenMapMatMult2(Rfast::eachrow(matrix_list[["U_U"]], b, "*"), prep_gnt_tf[["4"]]) +
-            eigenMapMatMult2(Rfast::eachrow(matrix_list[["MT_M"]], b, "*"), prep_gnt_tf[["2"]]) +
-            eigenMapMatMult2(Rfast::eachrow(matrix_list[["PT_U"]], b, "*"), prep_gnt_tf[["2"]]) +
-            eigenMapMatMult2(Rfast::eachrow(matrix_list[["PT_M"]], b, "*"), prep_gnt_tf[["3"]]) +
-            eigenMapMatMult2(Rfast::eachrow(matrix_list[["MT_U"]], b, "*"), prep_gnt_tf[["3"]]) +
-            eigenMapMatMult2(Rfast::eachrow(matrix_list[["PT_M"]], b, "*"), prep_gnt_tf[["1"]]) +
-            eigenMapMatMult2(Rfast::eachrow(matrix_list[["MT_M"]], b, "*"), prep_gnt_tf[["1"]]) +
-            eigenMapMatMult2(Rfast::eachrow(matrix_list[["U_M"]], b, "*"), prep_gnt_tf[["1"]])
+            state2 <- eigenMapMatMult2(t(Rfast::eachrow(matrix_list[["MT_U"]], b, "*")), prep_gnt_tf[["4"]]) +
+              eigenMapMatMult2(t(Rfast::eachrow(matrix_list[["PT_U"]], b, "*")), prep_gnt_tf[["4"]]) +
+              eigenMapMatMult2(t(Rfast::eachrow(matrix_list[["U_U"]], b, "*")), prep_gnt_tf[["4"]]) +
+              eigenMapMatMult2(t(Rfast::eachrow(matrix_list[["MT_M"]], b, "*")), prep_gnt_tf[["2"]]) +
+              eigenMapMatMult2(t(Rfast::eachrow(matrix_list[["PT_U"]], b, "*")), prep_gnt_tf[["2"]]) +
+              eigenMapMatMult2(t(Rfast::eachrow(matrix_list[["PT_M"]], b, "*")), prep_gnt_tf[["3"]]) +
+              eigenMapMatMult2(t(Rfast::eachrow(matrix_list[["MT_U"]], b, "*")), prep_gnt_tf[["3"]]) +
+              eigenMapMatMult2(t(Rfast::eachrow(matrix_list[["PT_M"]], b, "*")), prep_gnt_tf[["1"]]) +
+              eigenMapMatMult2(t(Rfast::eachrow(matrix_list[["MT_M"]], b, "*")), prep_gnt_tf[["1"]]) +
+              eigenMapMatMult2(t(Rfast::eachrow(matrix_list[["U_M"]], b, "*")), prep_gnt_tf[["1"]])
 
-          state3 <- eigenMapMatMult2(Rfast::eachrow(matrix_list[["U_M"]], c_vec, "*"), prep_gnt_tf[["2"]]) +
-            eigenMapMatMult2(Rfast::eachrow(matrix_list[["U_U"]], c_vec, "*"), prep_gnt_tf[["2"]]) +
+            state3 <- eigenMapMatMult2(t(Rfast::eachrow(matrix_list[["U_M"]], c_vec, "*")), prep_gnt_tf[["2"]]) +
+              eigenMapMatMult2(t(Rfast::eachrow(matrix_list[["U_U"]], c_vec, "*")), prep_gnt_tf[["2"]]) +
 
-            eigenMapMatMult2(Rfast::eachrow(matrix_list[["U_M"]], c_vec, "*"), prep_gnt_tf[["3"]]) +
-            eigenMapMatMult2(Rfast::eachrow(matrix_list[["U_U"]], c_vec, "*"), prep_gnt_tf[["3"]])
+              eigenMapMatMult2(t(Rfast::eachrow(matrix_list[["U_M"]], c_vec, "*")), prep_gnt_tf[["3"]]) +
+              eigenMapMatMult2(t(Rfast::eachrow(matrix_list[["U_U"]], c_vec, "*")), prep_gnt_tf[["3"]])
+          }else{
+            state1 <- eigenMapMatMult2(Rfast::eachrow(matrix_list[["MT_M"]], a, "*"), prep_gnt_tf[["4"]]) +
+              eigenMapMatMult2(Rfast::eachrow(matrix_list[["PT_M"]], a, "*"), prep_gnt_tf[["4"]]) +
+              eigenMapMatMult2(Rfast::eachrow(matrix_list[["U_M"]], a, "*"), prep_gnt_tf[["4"]]) +
+              eigenMapMatMult2(Rfast::eachrow(matrix_list[["MT_U"]], a, "*"), prep_gnt_tf[["2"]]) +
+              eigenMapMatMult2(Rfast::eachrow(matrix_list[["PT_M"]], a, "*"), prep_gnt_tf[["2"]]) +
+              eigenMapMatMult2(Rfast::eachrow(matrix_list[["PT_U"]], a, "*"), prep_gnt_tf[["3"]]) +
+              eigenMapMatMult2(Rfast::eachrow(matrix_list[["MT_M"]], a, "*"), prep_gnt_tf[["3"]]) +
+              eigenMapMatMult2(Rfast::eachrow(matrix_list[["MT_U"]], a, "*"), prep_gnt_tf[["1"]]) +
+              eigenMapMatMult2(Rfast::eachrow(matrix_list[["PT_U"]], a, "*"), prep_gnt_tf[["1"]]) +
+              eigenMapMatMult2(Rfast::eachrow(matrix_list[["U_U"]], a, "*"), prep_gnt_tf[["1"]])
+
+            state2 <- eigenMapMatMult2(Rfast::eachrow(matrix_list[["MT_U"]], b, "*"), prep_gnt_tf[["4"]]) +
+              eigenMapMatMult2(Rfast::eachrow(matrix_list[["PT_U"]], b, "*"), prep_gnt_tf[["4"]]) +
+              eigenMapMatMult2(Rfast::eachrow(matrix_list[["U_U"]], b, "*"), prep_gnt_tf[["4"]]) +
+              eigenMapMatMult2(Rfast::eachrow(matrix_list[["MT_M"]], b, "*"), prep_gnt_tf[["2"]]) +
+              eigenMapMatMult2(Rfast::eachrow(matrix_list[["PT_U"]], b, "*"), prep_gnt_tf[["2"]]) +
+              eigenMapMatMult2(Rfast::eachrow(matrix_list[["PT_M"]], b, "*"), prep_gnt_tf[["3"]]) +
+              eigenMapMatMult2(Rfast::eachrow(matrix_list[["MT_U"]], b, "*"), prep_gnt_tf[["3"]]) +
+              eigenMapMatMult2(Rfast::eachrow(matrix_list[["PT_M"]], b, "*"), prep_gnt_tf[["1"]]) +
+              eigenMapMatMult2(Rfast::eachrow(matrix_list[["MT_M"]], b, "*"), prep_gnt_tf[["1"]]) +
+              eigenMapMatMult2(Rfast::eachrow(matrix_list[["U_M"]], b, "*"), prep_gnt_tf[["1"]])
+
+            state3 <- eigenMapMatMult2(Rfast::eachrow(matrix_list[["U_M"]], c_vec, "*"), prep_gnt_tf[["2"]]) +
+              eigenMapMatMult2(Rfast::eachrow(matrix_list[["U_U"]], c_vec, "*"), prep_gnt_tf[["2"]]) +
+
+              eigenMapMatMult2(Rfast::eachrow(matrix_list[["U_M"]], c_vec, "*"), prep_gnt_tf[["3"]]) +
+              eigenMapMatMult2(Rfast::eachrow(matrix_list[["U_U"]], c_vec, "*"), prep_gnt_tf[["3"]])
+          }
+
           p <- state1 + state2 + state3
         }
       }
@@ -265,28 +325,44 @@ compute_probabilities <- function(priors_per_tree,
             p=methods::as((a*methcount + b*wtcount), "HDF5Matrix") %*% methods::as(prep_gnt_tf[["2"]], "HDF5Matrix") +
               methods::as((b*methcount + a*wtcount), "HDF5Matrix") %*% methods::as(prep_gnt_tf[["1"]], "HDF5Matrix")
           }else{
-            if(any(is.null(names(a)) |
-                   names(a) != colnames(methcount) |
-                   names(a) != colnames(wtcount))){
-              stop("Names of gamma vector are missing or do not match names of meth or unmeth count matrices. Ensure gamma and delta values are ordered according to column names of meth/wt count matrix")
-            }else if(any(is.null(names(b)) |
-                         names(b) != colnames(methcount) |
-                         names(b) != colnames(wtcount))){
-              stop("Names of delta vector are missing or do not match names of meth or unmeth count matrices. Ensure gamma and delta values are ordered according to column names of the meth/wt count matrix")
+            if(site_specific){
+              if(length(a) > nrow(methcount)){
+                a <- a[match(rownames(methcount), names(a))]
+                b <- b[match(rownames(methcount), names(b))]
+              }
+              if(all(names(a) == names(b)) & all(names(a) == rownames(methcount)) & all(names(a) == rownames(wtcount))){
+                # transpose matrix so you can do eachrow next
+                methcount <- t(methcount)
+                wtcount <- t(wtcount)
+              }else{
+                stop("Ensure names of gamma and delta match rownames of methcount and wtcount")
+              }
             }else{
-              if(verbose){
-                message("Yay, names of gamma & delta match column names of meth/wt count matrix.\n")
+              if(any(is.null(names(a)) |
+                     names(a) != colnames(methcount) |
+                     names(a) != colnames(wtcount))){
+                stop("Names of gamma vector are missing or do not match names of meth or unmeth count matrices. Ensure gamma and delta values are ordered according to column names of meth/wt count matrix")
+              }else if(any(is.null(names(b)) |
+                           names(b) != colnames(methcount) |
+                           names(b) != colnames(wtcount))){
+                stop("Names of delta vector are missing or do not match names of meth or unmeth count matrices. Ensure gamma and delta values are ordered according to column names of the meth/wt count matrix")
+              }else{
+                if(verbose){
+                  message("Yay, names of gamma & delta match column names of meth/wt count matrix.\n")
+                }
               }
             }
-            # TODO: double check this is correct
-            p_new = methods::as((Rfast::eachrow(methcount, a, "*") + Rfast::eachrow(wtcount, b, "*")), "HDF5Matrix") %*%
-                                  methods::as(prep_gnt_tf[["2"]], "HDF5Matrix") +
-              methods::as((Rfast::eachrow(methcount, b, "*")+Rfast::eachrow(wtcount, a, "*")), "HDF5Matrix") %*%
-              methods::as(prep_gnt_tf[["1"]], "HDF5Matrix")
-            # p_new = methods::as((sweep(methcount, 2, a, "*") + sweep(wtcount, 2, b, "*")), "HDF5Matrix") %*%
-            #   methods::as(prep_gnt_tf[["2"]], "HDF5Matrix") +
-            #   methods::as((sweep(methcount, 2, b, "*")+sweep(wtcount, 2, a, "*")), "HDF5Matrix") %*%
-            #   methods::as(prep_gnt_tf[["1"]], "HDF5Matrix")
+            if(site_specific){
+              p_new = methods::as(t((Rfast::eachrow(methcount, a, "*") + Rfast::eachrow(wtcount, b, "*"))), "HDF5Matrix") %*%
+                methods::as(prep_gnt_tf[["2"]], "HDF5Matrix") +
+                methods::as(t((Rfast::eachrow(methcount, b, "*")+Rfast::eachrow(wtcount, a, "*"))), "HDF5Matrix") %*%
+                methods::as(prep_gnt_tf[["1"]], "HDF5Matrix")
+            }else{
+              p_new = methods::as((Rfast::eachrow(methcount, a, "*") + Rfast::eachrow(wtcount, b, "*")), "HDF5Matrix") %*%
+                methods::as(prep_gnt_tf[["2"]], "HDF5Matrix") +
+                methods::as((Rfast::eachrow(methcount, b, "*")+Rfast::eachrow(wtcount, a, "*")), "HDF5Matrix") %*%
+                methods::as(prep_gnt_tf[["1"]], "HDF5Matrix")
+            }
             p <- p_new
           }
         }else{
@@ -294,24 +370,40 @@ compute_probabilities <- function(priors_per_tree,
             p = eigenMapMatMult2((a*methcount + b*wtcount), prep_gnt_tf[["2"]]) +
               eigenMapMatMult2((b*methcount + a*wtcount), prep_gnt_tf[["1"]])
           }else{
-            if(any(is.null(names(a)) |
-                   names(a) != colnames(methcount) |
-                   names(a) != colnames(wtcount))){
-              stop("Names of gamma vector are missing or do not match names of meth or unmeth count matrices. Ensure gamma and delta values are ordered according to column names of meth/wt count matrix")
-            }else if(any(is.null(names(b)) |
-                         names(b) != colnames(methcount) |
-                         names(b) != colnames(wtcount))){
-              stop("Names of delta vector are missing or do not match names of meth or unmeth count matrices. Ensure gamma and delta values are ordered according to column names of the meth/wt count matrix")
+            if(site_specific){
+              if(length(a) > nrow(methcount)){
+                a <- a[match(rownames(methcount), names(a))]
+                b <- b[match(rownames(methcount), names(b))]
+              }
+              if(all(names(a) == names(b)) & all(names(a) == rownames(methcount)) & all(names(a) == rownames(wtcount))){
+                # transpose matrix so you can do eachrow next
+                methcount <- t(methcount)
+                wtcount <- t(wtcount)
+              }else{
+                stop("Ensure names of gamma and delta match rownames of methcount and wtcount")
+              }
             }else{
-              if(verbose){
-                message("Yay, names of gamma & delta match column names of meth/wt count matrix.\n")
+              if(any(is.null(names(a)) |
+                     names(a) != colnames(methcount) |
+                     names(a) != colnames(wtcount))){
+                stop("Names of gamma vector are missing or do not match names of meth or unmeth count matrices. Ensure gamma and delta values are ordered according to column names of meth/wt count matrix")
+              }else if(any(is.null(names(b)) |
+                           names(b) != colnames(methcount) |
+                           names(b) != colnames(wtcount))){
+                stop("Names of delta vector are missing or do not match names of meth or unmeth count matrices. Ensure gamma and delta values are ordered according to column names of the meth/wt count matrix")
+              }else{
+                if(verbose){
+                  message("Yay, names of gamma & delta match column names of meth/wt count matrix.\n")
+                }
               }
             }
-            # TODO: double check this is correct
-            p_new <- eigenMapMatMult2((Rfast::eachrow(methcount, a, "*") + Rfast::eachrow(wtcount, b, "*")), prep_gnt_tf[["2"]]) +
-              eigenMapMatMult2((Rfast::eachrow(methcount, b, "*")+Rfast::eachrow(wtcount, a, "*")), prep_gnt_tf[["1"]])
-            # p_new <- eigenMapMatMult2((sweep(methcount, 2, a, "*") + sweep(wtcount, 2, b, "*")), prep_gnt_tf[["2"]]) +
-            #   eigenMapMatMult2((sweep(methcount, 2, b, "*")+sweep(wtcount, 2, a, "*")), prep_gnt_tf[["1"]])
+            if(site_specific){
+              p_new <- eigenMapMatMult2(t((Rfast::eachrow(methcount, a, "*") + Rfast::eachrow(wtcount, b, "*"))), prep_gnt_tf[["2"]]) +
+                eigenMapMatMult2(t((Rfast::eachrow(methcount, b, "*")+Rfast::eachrow(wtcount, a, "*"))), prep_gnt_tf[["1"]])
+            }else{
+              p_new <- eigenMapMatMult2((Rfast::eachrow(methcount, a, "*") + Rfast::eachrow(wtcount, b, "*")), prep_gnt_tf[["2"]]) +
+                eigenMapMatMult2((Rfast::eachrow(methcount, b, "*")+Rfast::eachrow(wtcount, a, "*")), prep_gnt_tf[["1"]])
+            }
             p <- p_new
             }
           }
@@ -354,7 +446,6 @@ compute_probabilities <- function(priors_per_tree,
       return(names(oneset))
     })
   }else{
-
     raw_rowsum <- DelayedArray::rowSums(raw_val)
 
     max_raw <- apply(raw_val, 1, max)
@@ -434,6 +525,7 @@ compute_probabilities <- function(priors_per_tree,
 
 get_mle <- function(branches,
                     reads,
+                    forced_starting_states = NULL,
                     return_edge_changes = TRUE,
                     priors_per_branch,
                     full_tree,
@@ -443,7 +535,8 @@ get_mle <- function(branches,
                     verbose_,
                     n_top_branches,
                     delete_intermediate_matrices = TRUE,
-                    max_loops_ = NULL){
+                    max_loops_ = NULL,
+                    site_specific = TRUE){
   # branches <- assignment_space[[4]]
   # sites <- assignment_sites[[4]]
   chr_pos = branch = starting_state  = probability = only_branch = n_assignments = branch_state = NULL
@@ -506,11 +599,20 @@ get_mle <- function(branches,
       affected_branches_full <- list("n" = c())
     }
     # compute priors
+    if(!is.null(forced_starting_states)){
+      ss_of_comb <- unique(forced_starting_states)
+      if(n_to_permute == 0){
+        ss_of_comb <- the$all_possible_states
+      }
+    }else{
+      ss_of_comb <- NULL
+    }
     br_priors_w_idx <- tryCatch(lapply(affected_branches_full,
                                        generate_priors_hemimeth,
                                        tree_ = full_tree,
                                        priors_p_branch = priors_per_branch,
-                                       return_idx = TRUE),
+                                       return_idx = TRUE,
+                                       force_ss = ss_of_comb),
                                 warning = function(w) {
                                   cat(paste0("warning!! : "))
                                 })
@@ -546,7 +648,8 @@ get_mle <- function(branches,
                                             gamma = gamma,
                                             delta = delta,
                                             hash_name = branches,
-                                            current_comb = n_to_permute)
+                                            current_comb = n_to_permute,
+                                            site_specific = site_specific)
     }else{
       br_probs_new <- compute_probabilities(priors_per_tree = full_result,
                                             matrix_list = reads,
@@ -555,7 +658,8 @@ get_mle <- function(branches,
                                             gamma = gamma,
                                             delta = delta,
                                             hash_name = branches,
-                                            current_comb = n_to_permute)
+                                            current_comb = n_to_permute,
+                                            site_specific = site_specific)
     }
 
     states_rates <- lapply(br_probs_new$branch,
@@ -704,6 +808,8 @@ get_mle <- function(branches,
 #' @param delete_matrices_from_hash logical whether to remove raw probability matrices from hash table
 #' @param priors_per_branch custom priors per branch
 #' @param max_loops integer maximum number of branches to drop when permuting candidate branches
+#' @param site_specific logical: if providing gammas & deltas, are they colony or site specific
+#' @param force_starting_state logical: should only certain start states be explored?
 #'
 #' @return data.table of final assignments
 #' @export
@@ -732,7 +838,9 @@ find_most_likely_set <- function(dt_pre,
                                  verbose = TRUE,
                                  delete_matrices_from_hash = TRUE,
                                  priors_per_branch = NULL,
-                                 max_loops = NULL){
+                                 max_loops = NULL,
+                                 site_specific = TRUE,
+                                 force_starting_state = FALSE){
   chr_pos = combined_branch = Chrom = Pos = NULL
   if(all(is.na(gamma)  & is.na(delta))){
     stopifnot("Must provide gamma and delta or ro values." = !is.na(ro))
@@ -832,6 +940,18 @@ find_most_likely_set <- function(dt_pre,
   }
   for(counter in 1:do_now){
     if(verbose) cat(sprintf("%i of %i: computing MLE for branch %s\n", counter, do_now, assignment_space[[counter]]))
+    if(force_starting_state){
+      fss <- lapply(assignment_sites, function(set_of_sites){
+        ss_root <- unique(dt_pre[match(set_of_sites, chr_pos),][["ss_root_tree"]])
+        return(ss_root)
+      })
+      n_idx <- match("n", assignment_space)
+      if(!is.na(n_idx)){
+        fss[[n_idx]] <- the$all_possible_states
+      }
+    }else{
+      fss <- NULL
+    }
     tmp_df <- get_mle(branches = assignment_space[[counter]],
                       reads = assignment_reads[[counter]],
                       priors_per_branch = priors_per_branch,
@@ -842,7 +962,9 @@ find_most_likely_set <- function(dt_pre,
                       verbose_ = verbose,
                       n_top_branches = n_top_br,
                       delete_intermediate_matrices = delete_matrices_from_hash,
-                      max_loops_ = max_loops)
+                      max_loops_ = max_loops,
+                      site_specific = site_specific,
+                      forced_starting_states = fss[[counter]])
     data.table::setnames(tmp_df, "n_assignments", "n_assignments_mle")
     dt_post <- data.table::merge.data.table(dt_pre, tmp_df, all.y = TRUE, by = "chr_pos")
     if(!is.null(dt_anno)){
