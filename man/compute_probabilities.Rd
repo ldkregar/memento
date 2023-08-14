@@ -16,23 +16,30 @@ compute_probabilities(
   n_top_br = 2,
   hash_name = NA,
   current_comb = NA,
-  site_specific = TRUE
+  site_specific = TRUE,
+  use_ff_fully = FALSE
 )
 }
 \arguments{
 \item{priors_per_tree}{list obtained from generate priors}
 
-\item{m_reads_matrix}{matrix of methylated reads: ensure column and row names are present}
+\item{m_reads_matrix}{matrix of methylated reads: ensure column and row names
+are present}
 
-\item{u_reads_matrix}{matrix of unmethylated reads: ensure column and row names are present}
+\item{u_reads_matrix}{matrix of unmethylated reads: ensure column and row
+names are present}
 
-\item{matrix_list}{matrix of phased reads: ensure column and row names are present for each matrix and names of matrices are MT_M, MT_U, PT_M, PT_U, U_U and U_M}
+\item{matrix_list}{matrix of phased reads: ensure column and row names are
+present for each matrix and names of matrices are MT_M, MT_U, PT_M, PT_U,
+U_U and U_M}
 
 \item{ro}{numeric: error rate (only required if gamma and delta not prvided)}
 
-\item{gamma}{numeric: proportion of unmethylated reads if inferred state is methylated}
+\item{gamma}{numeric: proportion of unmethylated reads if inferred state is
+methylated}
 
-\item{delta}{numeric: proportion of methylated reads if inferred state is unmethylated}
+\item{delta}{numeric: proportion of methylated reads if inferred state is
+unmethylated}
 
 \item{verbose}{logical: whether to print messages}
 
@@ -42,7 +49,11 @@ compute_probabilities(
 
 \item{current_comb}{only for mle step}
 
-\item{site_specific}{logical: if using gammas and deltas, are they site or colony specific?}
+\item{site_specific}{logical: if using gammas and deltas, are they site or
+colony specific?}
+
+\item{use_ff_fully}{logical: whether to use ff fully or just for computing
+probabilities}
 }
 \value{
 data.table of probabilities and solutions
