@@ -137,7 +137,7 @@ convert_branches <- function(assignment_dts,
 #' @export
 #'
 #' @examples
-#' \dontun{
+#' \dontrun{
 #' preliminary_solutions <- lapply(combined_by_chr_pos,
 #' get_preliminary_solution, subtrees = subtrees, full = full_tree)
 #' }
