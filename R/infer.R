@@ -33,7 +33,8 @@ compute_probabilities <- function(priors_per_tree,
                                   n_top_br = 2,
                                   hash_name = NA,
                                   current_comb = NA,
-                                  site_specific = TRUE){
+                                  site_specific = TRUE,
+                                  use_ff_fully = FALSE){
   chr_pos = branch = only_branch = starting_state = rank = n_assignments = Chrom = Pos = NULL
   if(length(priors_per_tree) == 1){
     only_one <- TRUE
@@ -425,27 +426,7 @@ compute_probabilities <- function(priors_per_tree,
     the$global_hash_list[[hash_name]][["raw_vals"]][[as.character(current_comb)]] <- list(raw_val)
   }
 
-  if(the$use_ff == FALSE){
-    raw_rowsum <- rowSums(raw_val)
-
-    max_raw <- apply(raw_val, 1, max)
-
-    max_subtracted <- sweep(raw_val, 1, max_raw)
-    max_prob <- exp(max_subtracted) / apply(exp(max_subtracted), 1, sum)
-
-    how_many <- min(n_top_br, ncol(max_prob))
-    comb_name <- colnames(max_prob)
-
-    max_prob_both <- apply(max_prob, 1, function(x){
-      sort(x, decreasing = TRUE)[1:how_many]
-    }, simplify = FALSE)
-
-    max_prob_values <- max_prob_both
-
-    max_prob_indices <- lapply(max_prob_both, function(oneset){
-      return(names(oneset))
-    })
-  }else{
+  if(use_ff_fully & the$use_ff){
     raw_rowsum <- DelayedArray::rowSums(raw_val)
 
     max_raw <- apply(raw_val, 1, max)
@@ -469,6 +450,29 @@ compute_probabilities <- function(priors_per_tree,
                                                            spacings = c(1L, ncol(max_prob))))
     max_prob_values <- lapply(max_prob_both, "[[", 1)
     max_prob_indices <- lapply(max_prob_both, "[[", 2)
+  }else{
+    if(the$use_ff){
+      raw_val <- as.matrix(raw_val)
+    }
+    raw_rowsum <- rowSums(raw_val)
+
+    max_raw <- apply(raw_val, 1, max)
+
+    max_subtracted <- sweep(raw_val, 1, max_raw)
+    max_prob <- exp(max_subtracted) / apply(exp(max_subtracted), 1, sum)
+
+    how_many <- min(n_top_br, ncol(max_prob))
+    comb_name <- colnames(max_prob)
+
+    max_prob_both <- apply(max_prob, 1, function(x){
+      sort(x, decreasing = TRUE)[1:how_many]
+    }, simplify = FALSE)
+
+    max_prob_values <- max_prob_both
+
+    max_prob_indices <- lapply(max_prob_both, function(oneset){
+      return(names(oneset))
+    })
   }
 
   dt_prob <- data.table::data.table(do.call("rbind", max_prob_values))
