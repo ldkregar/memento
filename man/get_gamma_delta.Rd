@@ -9,7 +9,8 @@ get_gamma_delta(
   subtrees,
   full_tree,
   meth_matrix = NULL,
-  unmeth_matrix = NULL
+  unmeth_matrix = NULL,
+  min_tips_in_s = 5
 )
 }
 \arguments{
@@ -22,6 +23,8 @@ get_gamma_delta(
 \item{meth_matrix}{matrix of methylated reads}
 
 \item{unmeth_matrix}{matrix of unmethylated reads}
+
+\item{min_tips_in_s}{minimum number of tips that must be in a state}
 }
 \value{
 list of two vectors, gamma and delta
