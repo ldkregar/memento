@@ -41,6 +41,23 @@ remap_edges <- function(one_subtree_x,
   return(orig_edge)
 }
 
+#' Input dataframes of assignment per subtree, along with subtrees and full tree
+#' to obtain candidate assignments on full tree: returns all solutions
+#'
+#' @param assignment_dts list of assignment results per subtree
+#' @param all_trees list of all subtrees
+#' @param full_tree_ full tree
+#' @param verbose1 logical whether to print progress
+#'
+#' @return data table of candidate results on full tree
+#' @export
+#'
+#' @examples
+#' \dontrun{
+#' dt_combined <- convert_branches(assignment_dts = assignments,
+#' all_trees = subtrees, full_tree_ = full_tree, verbose1 = FALSE)
+#' }
+#'
 convert_branches <- function(assignment_dts,
                              all_trees,
                              full_tree_,
@@ -109,6 +126,21 @@ convert_branches <- function(assignment_dts,
   return(dt_combined)
 }
 
+#' Input candidate assignments across full tree and obtain tip states of full
+#' tree
+#'
+#' @param dt_grouped datatable of all subtree solutions per site
+#' @param subtrees list of subtrees
+#' @param full ape phylo object of full tree
+#'
+#' @return tips states of full tree given subtree assignments
+#' @export
+#'
+#' @examples
+#' \dontun{
+#' preliminary_solutions <- lapply(combined_by_chr_pos,
+#' get_preliminary_solution, subtrees = subtrees, full = full_tree)
+#' }
 get_preliminary_solution <- function(dt_grouped, subtrees, full){
   subtree_list <- subtrees[dt_grouped$sub_tree_id]
   all_expected_tip_states <- mapply(generate_expected_tip_states,
@@ -171,7 +203,27 @@ extract_branches <- function(dt_grouped, full){
   return(dt_grouped)
 }
 
-get_proportion_of_reads <- function(tips_mtx, reads_mtx, depth_mtx){
+#' Get proportion of reads in state S given read and depth matrices
+#'
+#' @param tips_mtx logical matrix of tip states
+#' @param reads_mtx matrix of methylated reads
+#' @param depth_mtx matrix of depth
+#' @param min_in_s minimum number of tips in state s required
+#'
+#' @return vector of proportion of tips in state S
+#' @export
+#'
+#' @examples
+#' \dontrun{
+#' # for 3 state model
+#' gamma_site <- get_proportion_of_reads(tips_mtx = prelim_s_mtx == 3,
+#' reads_mtx = unmeth_matrix, depth_mtx = depth_matrix,
+#' min_in_s = min_tips_in_s)
+#'
+#' delta_site <- get_proportion_of_reads(tips_mtx = prelim_s_mtx == 1,
+#' reads_mtx = meth_matrix, depth_mtx = depth_matrix, min_in_s = min_tips_in_s)
+#' }
+get_proportion_of_reads <- function(tips_mtx, reads_mtx, depth_mtx, min_in_s = 5){
   # Estimate gamma as the proportion of unmethylated reads across sites with genotype=2
   # Estimate delta as the proportion of methylated reads across sites with genotype=0
   if(!all(rownames(reads_mtx) == rownames(tips_mtx))){
@@ -183,10 +235,14 @@ get_proportion_of_reads <- function(tips_mtx, reads_mtx, depth_mtx){
   stopifnot(all(rownames(tips_mtx) == rownames(reads_mtx)) & all(rownames(tips_mtx) == rownames(depth_mtx)))
   proportion <- sapply(1:nrow(tips_mtx), function(idx){
     relevant_in_state <- reads_mtx[idx, tips_mtx[idx,]]
-    relevant_total <- depth_mtx[idx, tips_mtx[idx,]]
-    prop <- sum(relevant_in_state)/sum(relevant_total)
-    if(is.nan(prop)){
+    if(length(relevant_in_state) < min_in_s){
       prop <- NA
+    }else{
+      relevant_total <- depth_mtx[idx, tips_mtx[idx,]]
+      prop <- sum(relevant_in_state)/sum(relevant_total)
+      if(is.nan(prop)){
+        prop <- NA
+      }
     }
     return(prop)
   })
@@ -236,6 +292,7 @@ impute_gamma_delta <- function(gd_vector, range = 10, fillwith = NULL){
 #' @param full_tree ape phylo object of f ull tree
 #' @param meth_matrix matrix of methylated reads
 #' @param unmeth_matrix matrix of unmethylated reads
+#' @param min_tips_in_s minimum number of tips that must be in a state
 #'
 #' @return list of two vectors, gamma and delta
 #' @export
@@ -250,7 +307,8 @@ get_gamma_delta <- function(assignments,
                             subtrees,
                             full_tree,
                             meth_matrix = NULL,
-                            unmeth_matrix = NULL){
+                            unmeth_matrix = NULL,
+                            min_tips_in_s = 5){
   dt_combined <- convert_branches(assignment_dts = assignments,
                                   all_trees = subtrees,
                                   full_tree_ = full_tree,
@@ -277,22 +335,35 @@ get_gamma_delta <- function(assignments,
     if(the$number_of_states == 2){
       gamma_site <- get_proportion_of_reads(tips_mtx = prelim_s_mtx == 2,
                                             reads_mtx = unmeth_matrix,
-                                            depth_mtx = depth_matrix)
+                                            depth_mtx = depth_matrix,
+                                            min_in_s = min_tips_in_s)
 
       delta_site <- get_proportion_of_reads(tips_mtx = prelim_s_mtx == 1,
                                             reads_mtx = meth_matrix,
-                                            depth_mtx = depth_matrix)
+                                            depth_mtx = depth_matrix,
+                                            min_in_s = min_tips_in_s)
     }else if(the$number_of_states == 3){
       gamma_site <- get_proportion_of_reads(tips_mtx = prelim_s_mtx == 3,
                                             reads_mtx = unmeth_matrix,
-                                            depth_mtx = depth_matrix)
+                                            depth_mtx = depth_matrix,
+                                            min_in_s = min_tips_in_s)
 
       delta_site <- get_proportion_of_reads(tips_mtx = prelim_s_mtx == 1,
                                             reads_mtx = meth_matrix,
-                                            depth_mtx = depth_matrix)
+                                            depth_mtx = depth_matrix,
+                                            min_in_s = min_tips_in_s)
     }
   }else{
     stop("Must implement for 4 states")
+    # gamma_site <- get_proportion_of_reads(tips_mtx = prelim_s_mtx == 4,
+    #                                       reads_mtx = ,
+    #                                       depth_mtx = ,
+    #                                       min_in_s = min_tips_in_s)
+    #
+    # delta_site <- get_proportion_of_reads(tips_mtx = prelim_s_mtx == 1,
+    #                                       reads_mtx = ,
+    #                                       depth_mtx = ,
+    #                                       min_in_s = min_tips_in_s)
   }
   return(list("gamma" = gamma_site,
               "delta" = delta_site))
