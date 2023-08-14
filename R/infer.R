@@ -2,17 +2,26 @@
 #' Compute probabilites of possible assignments
 #'
 #' @param priors_per_tree list obtained from generate priors
-#' @param m_reads_matrix matrix of methylated reads: ensure column and row names are present
-#' @param u_reads_matrix matrix of unmethylated reads: ensure column and row names are present
-#' @param matrix_list matrix of phased reads: ensure column and row names are present for each matrix and names of matrices are MT_M, MT_U, PT_M, PT_U, U_U and U_M
+#' @param m_reads_matrix matrix of methylated reads: ensure column and row names
+#'  are present
+#' @param u_reads_matrix matrix of unmethylated reads: ensure column and row
+#' names are present
+#' @param matrix_list matrix of phased reads: ensure column and row names are
+#' present for each matrix and names of matrices are MT_M, MT_U, PT_M, PT_U,
+#' U_U and U_M
 #' @param ro numeric: error rate (only required if gamma and delta not prvided)
-#' @param gamma numeric: proportion of unmethylated reads if inferred state is methylated
-#' @param delta numeric: proportion of methylated reads if inferred state is unmethylated
+#' @param gamma numeric: proportion of unmethylated reads if inferred state is
+#' methylated
+#' @param delta numeric: proportion of methylated reads if inferred state is
+#' unmethylated
 #' @param verbose logical: whether to print messages
 #' @param n_top_br integer: number of top branches to return
 #' @param hash_name character: name of current combination (only for mle step)
 #' @param current_comb only for mle step
-#' @param site_specific logical: if using gammas and deltas, are they site or colony specific?
+#' @param site_specific logical: if using gammas and deltas, are they site or
+#' colony specific?
+#' @param use_ff_fully logical: whether to use ff fully or just for computing
+#' probabilities
 #'
 #' @return data.table of probabilities and solutions
 #' @export
