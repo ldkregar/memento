@@ -10,6 +10,7 @@ get_gamma_delta(
   full_tree,
   meth_matrix = NULL,
   unmeth_matrix = NULL,
+  matrix_list = NULL,
   min_tips_in_s = 5
 )
 }
@@ -23,6 +24,8 @@ get_gamma_delta(
 \item{meth_matrix}{matrix of methylated reads}
 
 \item{unmeth_matrix}{matrix of unmethylated reads}
+
+\item{matrix_list}{list of matrices (when running on phased data)}
 
 \item{min_tips_in_s}{minimum number of tips that must be in a state}
 }
