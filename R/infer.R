@@ -536,6 +536,42 @@ compute_probabilities <- function(priors_per_tree,
   return(dt_new)
 }
 
+#' Get MLE solution for branches at reads
+#'
+#' @param branches character of candidate branches
+#' @param reads named list with items mm and um that holds methylated and
+#' unmethlyated reads per site for all tips
+#' @param forced_starting_states starting state (if NULL - will try all
+#' starting states)
+#' @param return_edge_changes logical
+#' @param priors_per_branch list of priors per branch
+#' @param full_tree ape phylo object of full tree
+#' @param ro conversion rate
+#' @param gamma error rate: prop. of unmethylated reads when state is meth
+#' @param delta error rate: prop. of methylated reads when state is unmeth
+#' @param verbose_ logical: if verbose
+#' @param n_top_branches integer number of top branches to report
+#' @param delete_intermediate_matrices logical: if intermediate matrices should
+#' be deleted
+#' @param max_loops_ max number of branches to drop
+#' @param site_specific whether gamma and delta are site specific (alternative
+#' is colony specific)
+#'
+#' @return data.table of most likely solution
+#' @export
+#'
+#' @examples
+#' \dontrun{
+#'     tmp_df <- get_mle(branches = assignment_space[[counter]],
+#'     reads = assignment_reads[[counter]],
+#'     priors_per_branch = priors_per_branch, full_tree = full_tree,
+#'     ro = ro, gamma = gamma, delta = delta, verbose_ = verbose,
+#'     n_top_branches = n_top_br,
+#'     delete_intermediate_matrices = delete_matrices_from_hash,
+#'     max_loops_ = max_loops,
+#'     site_specific = site_specific,
+#'     forced_starting_states = fss[[counter]])
+#' }
 get_mle <- function(branches,
                     reads,
                     forced_starting_states = NULL,
@@ -545,8 +581,8 @@ get_mle <- function(branches,
                     ro = NA,
                     gamma = NA,
                     delta = NA,
-                    verbose_,
-                    n_top_branches,
+                    verbose_ = FALSE,
+                    n_top_branches = 1,
                     delete_intermediate_matrices = TRUE,
                     max_loops_ = NULL,
                     site_specific = TRUE){
