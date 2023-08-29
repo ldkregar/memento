@@ -157,6 +157,21 @@ find_state_of_affected_branches <- function(branch_state, changed_branches){
   return(r)
 }
 
+#' Generate priors
+#'
+#' @param changes_on_branch changes
+#' @param tree_ ape phylo object
+#' @param priors_p_branch priors matrix
+#' @param return_idx logical
+#' @param force_ss NULL if not, ss otherwise
+#'
+#' @return priors list
+#' @export
+#'
+#' @examples
+#' \dontrun{
+#'
+#' }
 generate_priors_hemimeth <- function(changes_on_branch,
                                      tree_,
                                      # tree_ = tree,
@@ -200,6 +215,18 @@ generate_priors_hemimeth <- function(changes_on_branch,
   return(get_idx_from_both_starts)
 }
 
+#' Map changes to tips
+#'
+#' @param pr priors
+#' @param tree_ ape phylo object
+#'
+#' @return expected tips
+#' @export
+#'
+#' @examples
+#' \dontrun{
+#'
+#' }
 map_branch_changes_to_affected_tips_hemi <- function(pr, tree_){
   # takes a vector of branch exit states (generated when priors are produced) and prepares a vector of tip exit states
   exit_states <- vector("list", length = length(pr))
@@ -217,6 +244,19 @@ map_branch_changes_to_affected_tips_hemi <- function(pr, tree_){
   return(exit_states)
 }
 
+#' Prepare genotypes
+#'
+#' @param a_t affected tips
+#' @param original_tree ape object of original full tree
+#' @param root_tree root tree
+#'
+#' @return matrix of genotypes?
+#' @export
+#'
+#' @examples
+#' \dontrun{
+#'
+#' }
 generate_genotypes <- function(a_t,
                                #original_tree = full_tree,
                                original_tree,

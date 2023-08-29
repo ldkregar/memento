@@ -467,6 +467,19 @@ generate_permutations <- function(n, m = m, only_one = FALSE){
   return(c)
 }
 
+#' Get rates
+#'
+#' @param branch solution
+#' @param priors_w_idx priors
+#' @param full_tree ape phylo object
+#'
+#' @return rates
+#' @export
+#'
+#' @examples
+#' \dontrun{
+#'
+#' }
 get_rate <- function(branch,
                      priors_w_idx,
                      full_tree){
