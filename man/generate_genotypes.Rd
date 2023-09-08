@@ -21,6 +21,7 @@ Prepare genotypes
 }
 \examples{
 \dontrun{
-
+     genotype_vectors <- lapply(affected_tips, generate_genotypes,
+     original_tree = full_tree, root_tree = one_tree)
 }
 }
