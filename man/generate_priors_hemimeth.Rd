@@ -31,6 +31,10 @@ Generate priors
 }
 \examples{
 \dontrun{
-
+priors <- tryCatch(lapply(affected_branches, generate_priors_hemimeth,
+tree_ = one_tree, priors_p_branch = priors_per_branch, return_idx = TRUE),
+warning = function(w) {
+cat(paste0("warning!! : ", i))
+})
 }
 }
