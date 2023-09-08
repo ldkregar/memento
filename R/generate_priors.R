@@ -170,7 +170,11 @@ find_state_of_affected_branches <- function(branch_state, changed_branches){
 #'
 #' @examples
 #' \dontrun{
-#'
+#' priors <- tryCatch(lapply(affected_branches, generate_priors_hemimeth,
+#' tree_ = one_tree, priors_p_branch = priors_per_branch, return_idx = TRUE),
+#' warning = function(w) {
+#' cat(paste0("warning!! : ", i))
+#' })
 #' }
 generate_priors_hemimeth <- function(changes_on_branch,
                                      tree_,
@@ -225,7 +229,8 @@ generate_priors_hemimeth <- function(changes_on_branch,
 #'
 #' @examples
 #' \dontrun{
-#'
+#'     affected_tips <- mapply(map_branch_changes_to_affected_tips_hemi,
+#'     pr = priors, tree_ = one_tree_aslist, SIMPLIFY = FALSE)
 #' }
 map_branch_changes_to_affected_tips_hemi <- function(pr, tree_){
   # takes a vector of branch exit states (generated when priors are produced) and prepares a vector of tip exit states
@@ -255,7 +260,8 @@ map_branch_changes_to_affected_tips_hemi <- function(pr, tree_){
 #'
 #' @examples
 #' \dontrun{
-#'
+#'      genotype_vectors <- lapply(affected_tips, generate_genotypes,
+#'      original_tree = full_tree, root_tree = one_tree)
 #' }
 generate_genotypes <- function(a_t,
                                #original_tree = full_tree,
