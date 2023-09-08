@@ -137,6 +137,10 @@ compute_probabilities <- function(priors_per_tree,
             methods::as(c*(methcount+wtcount), "HDF5Matrix") %*% methods::as(prep_gnt_tf[["2"]], "HDF5Matrix") +
             methods::as((b*methcount+a*wtcount), "HDF5Matrix") %*% methods::as(prep_gnt_tf[["1"]], "HDF5Matrix")
           #})
+      }else if(the$use_Rfast){
+        p=Rfast::mat.mult((a*methcount + b*wtcount), prep_gnt_tf[["3"]]) +
+          Rfast::mat.mult(c*(methcount+wtcount), prep_gnt_tf[["2"]]) +
+          Rfast::mat.mult((b*methcount+a*wtcount), prep_gnt_tf[["1"]])
       }else{
         p=eigenMapMatMult2((a*methcount + b*wtcount), prep_gnt_tf[["3"]]) +
           eigenMapMatMult2(c*(methcount+wtcount), prep_gnt_tf[["2"]]) +
@@ -194,6 +198,10 @@ compute_probabilities <- function(priors_per_tree,
         new_p <- methods::as((tmp1+tmp2), "HDF5Matrix") %*% methods::as(prep_gnt_tf[["3"]], "HDF5Matrix") +
           methods::as(tmp3, "HDF5Matrix") %*% methods::as(prep_gnt_tf[["2"]], "HDF5Matrix") +
           methods::as((tmp4 + tmp5), "HDF5Matrix") %*% methods::as(prep_gnt_tf[["1"]], "HDF5Matrix")
+      }else if(the$use_Rfast){
+        new_p <- Rfast::mat.mult((tmp1+tmp2), prep_gnt_tf[["3"]]) +
+          Rfast::mat.mult(tmp3, prep_gnt_tf[["2"]]) +
+          Rfast::mat.mult((tmp4 + tmp5), prep_gnt_tf[["1"]])
       }else{
         new_p <- eigenMapMatMult2((tmp1+tmp2), prep_gnt_tf[["3"]]) +
           eigenMapMatMult2(tmp3, prep_gnt_tf[["2"]]) +
@@ -204,6 +212,129 @@ compute_probabilities <- function(priors_per_tree,
     }else if(the$number_of_states == 4){
       if(the$use_ff){
         stop("low imprint code for 4 states not yet implemented, set the$use_ff to FALSE")
+      }else if(the$use_Rfast){
+        if(length(a) == 1 & length(b) == 1){
+          state1 <- Rfast::mat.mult(matrix_list[["MT_M"]], prep_gnt_tf[["4"]]) +
+            Rfast::mat.mult(matrix_list[["PT_M"]], prep_gnt_tf[["4"]]) +
+            Rfast::mat.mult(matrix_list[["U_M"]], prep_gnt_tf[["4"]]) +
+            Rfast::mat.mult(matrix_list[["MT_U"]], prep_gnt_tf[["2"]]) +
+            Rfast::mat.mult(matrix_list[["PT_M"]], prep_gnt_tf[["2"]]) +
+            Rfast::mat.mult(matrix_list[["PT_U"]], prep_gnt_tf[["3"]]) +
+            Rfast::mat.mult(matrix_list[["MT_M"]], prep_gnt_tf[["3"]]) +
+            Rfast::mat.mult(matrix_list[["MT_U"]], prep_gnt_tf[["1"]]) +
+            Rfast::mat.mult(matrix_list[["PT_U"]], prep_gnt_tf[["1"]]) +
+            Rfast::mat.mult(matrix_list[["U_U"]], prep_gnt_tf[["1"]])
+
+          state2 <- Rfast::mat.mult(matrix_list[["MT_U"]], prep_gnt_tf[["4"]]) +
+            Rfast::mat.mult(matrix_list[["PT_U"]], prep_gnt_tf[["4"]]) +
+            Rfast::mat.mult(matrix_list[["U_U"]], prep_gnt_tf[["4"]]) +
+            Rfast::mat.mult(matrix_list[["MT_M"]], prep_gnt_tf[["2"]]) +
+            Rfast::mat.mult(matrix_list[["PT_U"]], prep_gnt_tf[["2"]]) +
+            Rfast::mat.mult(matrix_list[["PT_M"]], prep_gnt_tf[["3"]]) +
+            Rfast::mat.mult(matrix_list[["MT_U"]], prep_gnt_tf[["3"]]) +
+            Rfast::mat.mult(matrix_list[["PT_M"]], prep_gnt_tf[["1"]]) +
+            Rfast::mat.mult(matrix_list[["MT_M"]], prep_gnt_tf[["1"]]) +
+            Rfast::mat.mult(matrix_list[["U_M"]], prep_gnt_tf[["1"]])
+
+          state3 <- Rfast::mat.mult(matrix_list[["U_M"]], prep_gnt_tf[["2"]]) +
+            Rfast::mat.mult(matrix_list[["U_U"]], prep_gnt_tf[["2"]]) +
+
+            Rfast::mat.mult(matrix_list[["U_M"]], prep_gnt_tf[["3"]]) +
+            Rfast::mat.mult(matrix_list[["U_U"]], prep_gnt_tf[["3"]])
+
+          p <- state1 * a + state2 * b + state3 * c
+        }else{
+          if(site_specific){
+            if(length(a) > nrow(matrix_list[[1]])){
+              a <- a[match(rownames(matrix_list[[1]]), names(a))]
+              b <- b[match(rownames(matrix_list[[1]]), names(b))]
+            }
+            if(all(names(a) == names(b)) & all(names(a) == rownames(matrix_list[[1]]))){
+              # transpose matrix so you can do eachrow next
+              matrix_list <- lapply(matrix_list, function(onem){
+                return(t(onem))
+              })
+            }else{
+              stop("Ensure names of gamma and delta match rownames of matrix_list matrices")
+            }
+          }else{
+            if(any(is.null(names(a)) |
+                   names(a) != colnames(matrix_list[[1]]) |
+                   names(a) != colnames(matrix_list[[1]]))){
+              stop("Names of gamma vector are missing or do not match names of meth or unmeth count matrices. Ensure gamma and delta values are ordered according to column names of meth/wt count matrix")
+            }else if(any(is.null(names(b)) |
+                         names(b) != colnames(matrix_list[[1]]) |
+                         names(b) != colnames(matrix_list[[1]]))){
+              stop("Names of delta vector are missing or do not match names of meth or unmeth count matrices. Ensure gamma and delta values are ordered according to column names of the meth/wt count matrix")
+            }else{
+              if(verbose){
+                cat("Names of gamma & delta match column names of meth/wt count matrix.\n")
+              }
+            }
+          }
+
+          c_vec <- rep(c, ncol(matrix_list[[1]]))
+          # sweep(methcount, 2, a, "*")
+          if(site_specific){
+            state1 <- Rfast::mat.mult(t(Rfast::eachrow(matrix_list[["MT_M"]], a, "*")), prep_gnt_tf[["4"]]) +
+              Rfast::mat.mult(t(Rfast::eachrow(matrix_list[["PT_M"]], a, "*")), prep_gnt_tf[["4"]]) +
+              Rfast::mat.mult(t(Rfast::eachrow(matrix_list[["U_M"]], a, "*")), prep_gnt_tf[["4"]]) +
+              Rfast::mat.mult(t(Rfast::eachrow(matrix_list[["MT_U"]], a, "*")), prep_gnt_tf[["2"]]) +
+              Rfast::mat.mult(t(Rfast::eachrow(matrix_list[["PT_M"]], a, "*")), prep_gnt_tf[["2"]]) +
+              Rfast::mat.mult(t(Rfast::eachrow(matrix_list[["PT_U"]], a, "*")), prep_gnt_tf[["3"]]) +
+              Rfast::mat.mult(t(Rfast::eachrow(matrix_list[["MT_M"]], a, "*")), prep_gnt_tf[["3"]]) +
+              Rfast::mat.mult(t(Rfast::eachrow(matrix_list[["MT_U"]], a, "*")), prep_gnt_tf[["1"]]) +
+              Rfast::mat.mult(t(Rfast::eachrow(matrix_list[["PT_U"]], a, "*")), prep_gnt_tf[["1"]]) +
+              Rfast::mat.mult(t(Rfast::eachrow(matrix_list[["U_U"]], a, "*")), prep_gnt_tf[["1"]])
+
+            state2 <- Rfast::mat.mult(t(Rfast::eachrow(matrix_list[["MT_U"]], b, "*")), prep_gnt_tf[["4"]]) +
+              Rfast::mat.mult(t(Rfast::eachrow(matrix_list[["PT_U"]], b, "*")), prep_gnt_tf[["4"]]) +
+              Rfast::mat.mult(t(Rfast::eachrow(matrix_list[["U_U"]], b, "*")), prep_gnt_tf[["4"]]) +
+              Rfast::mat.mult(t(Rfast::eachrow(matrix_list[["MT_M"]], b, "*")), prep_gnt_tf[["2"]]) +
+              Rfast::mat.mult(t(Rfast::eachrow(matrix_list[["PT_U"]], b, "*")), prep_gnt_tf[["2"]]) +
+              Rfast::mat.mult(t(Rfast::eachrow(matrix_list[["PT_M"]], b, "*")), prep_gnt_tf[["3"]]) +
+              Rfast::mat.mult(t(Rfast::eachrow(matrix_list[["MT_U"]], b, "*")), prep_gnt_tf[["3"]]) +
+              Rfast::mat.mult(t(Rfast::eachrow(matrix_list[["PT_M"]], b, "*")), prep_gnt_tf[["1"]]) +
+              Rfast::mat.mult(t(Rfast::eachrow(matrix_list[["MT_M"]], b, "*")), prep_gnt_tf[["1"]]) +
+              Rfast::mat.mult(t(Rfast::eachrow(matrix_list[["U_M"]], b, "*")), prep_gnt_tf[["1"]])
+
+            state3 <- Rfast::mat.mult(t(Rfast::eachrow(matrix_list[["U_M"]], c_vec, "*")), prep_gnt_tf[["2"]]) +
+              Rfast::mat.mult(t(Rfast::eachrow(matrix_list[["U_U"]], c_vec, "*")), prep_gnt_tf[["2"]]) +
+
+              Rfast::mat.mult(t(Rfast::eachrow(matrix_list[["U_M"]], c_vec, "*")), prep_gnt_tf[["3"]]) +
+              Rfast::mat.mult(t(Rfast::eachrow(matrix_list[["U_U"]], c_vec, "*")), prep_gnt_tf[["3"]])
+          }else{
+            state1 <- Rfast::mat.mult(Rfast::eachrow(matrix_list[["MT_M"]], a, "*"), prep_gnt_tf[["4"]]) +
+              Rfast::mat.mult(Rfast::eachrow(matrix_list[["PT_M"]], a, "*"), prep_gnt_tf[["4"]]) +
+              Rfast::mat.mult(Rfast::eachrow(matrix_list[["U_M"]], a, "*"), prep_gnt_tf[["4"]]) +
+              Rfast::mat.mult(Rfast::eachrow(matrix_list[["MT_U"]], a, "*"), prep_gnt_tf[["2"]]) +
+              Rfast::mat.mult(Rfast::eachrow(matrix_list[["PT_M"]], a, "*"), prep_gnt_tf[["2"]]) +
+              Rfast::mat.mult(Rfast::eachrow(matrix_list[["PT_U"]], a, "*"), prep_gnt_tf[["3"]]) +
+              Rfast::mat.mult(Rfast::eachrow(matrix_list[["MT_M"]], a, "*"), prep_gnt_tf[["3"]]) +
+              Rfast::mat.mult(Rfast::eachrow(matrix_list[["MT_U"]], a, "*"), prep_gnt_tf[["1"]]) +
+              Rfast::mat.mult(Rfast::eachrow(matrix_list[["PT_U"]], a, "*"), prep_gnt_tf[["1"]]) +
+              Rfast::mat.mult(Rfast::eachrow(matrix_list[["U_U"]], a, "*"), prep_gnt_tf[["1"]])
+
+            state2 <- Rfast::mat.mult(Rfast::eachrow(matrix_list[["MT_U"]], b, "*"), prep_gnt_tf[["4"]]) +
+              Rfast::mat.mult(Rfast::eachrow(matrix_list[["PT_U"]], b, "*"), prep_gnt_tf[["4"]]) +
+              Rfast::mat.mult(Rfast::eachrow(matrix_list[["U_U"]], b, "*"), prep_gnt_tf[["4"]]) +
+              Rfast::mat.mult(Rfast::eachrow(matrix_list[["MT_M"]], b, "*"), prep_gnt_tf[["2"]]) +
+              Rfast::mat.mult(Rfast::eachrow(matrix_list[["PT_U"]], b, "*"), prep_gnt_tf[["2"]]) +
+              Rfast::mat.mult(Rfast::eachrow(matrix_list[["PT_M"]], b, "*"), prep_gnt_tf[["3"]]) +
+              Rfast::mat.mult(Rfast::eachrow(matrix_list[["MT_U"]], b, "*"), prep_gnt_tf[["3"]]) +
+              Rfast::mat.mult(Rfast::eachrow(matrix_list[["PT_M"]], b, "*"), prep_gnt_tf[["1"]]) +
+              Rfast::mat.mult(Rfast::eachrow(matrix_list[["MT_M"]], b, "*"), prep_gnt_tf[["1"]]) +
+              Rfast::mat.mult(Rfast::eachrow(matrix_list[["U_M"]], b, "*"), prep_gnt_tf[["1"]])
+
+            state3 <- Rfast::mat.mult(Rfast::eachrow(matrix_list[["U_M"]], c_vec, "*"), prep_gnt_tf[["2"]]) +
+              Rfast::mat.mult(Rfast::eachrow(matrix_list[["U_U"]], c_vec, "*"), prep_gnt_tf[["2"]]) +
+
+              Rfast::mat.mult(Rfast::eachrow(matrix_list[["U_M"]], c_vec, "*"), prep_gnt_tf[["3"]]) +
+              Rfast::mat.mult(Rfast::eachrow(matrix_list[["U_U"]], c_vec, "*"), prep_gnt_tf[["3"]])
+          }
+
+          p <- state1 + state2 + state3
+        }
       }else{
         if(length(a) == 1 & length(b) == 1){
           state1 <- eigenMapMatMult2(matrix_list[["MT_M"]], prep_gnt_tf[["4"]]) +
@@ -375,6 +506,49 @@ compute_probabilities <- function(priors_per_tree,
             }
             p <- p_new
           }
+        }else if(the$use_Rfast){
+
+          if(length(a) == 1 & length(b) == 1){
+            p = Rfast::mat.mult((a*methcount + b*wtcount), prep_gnt_tf[["2"]]) +
+              Rfast::mat.mult((b*methcount + a*wtcount), prep_gnt_tf[["1"]])
+          }else{
+            if(site_specific){
+              if(length(a) > nrow(methcount)){
+                a <- a[match(rownames(methcount), names(a))]
+                b <- b[match(rownames(methcount), names(b))]
+              }
+              if(all(names(a) == names(b)) & all(names(a) == rownames(methcount)) & all(names(a) == rownames(wtcount))){
+                # transpose matrix so you can do eachrow next
+                methcount <- t(methcount)
+                wtcount <- t(wtcount)
+              }else{
+                stop("Ensure names of gamma and delta match rownames of methcount and wtcount")
+              }
+            }else{
+              if(any(is.null(names(a)) |
+                     names(a) != colnames(methcount) |
+                     names(a) != colnames(wtcount))){
+                stop("Names of gamma vector are missing or do not match names of meth or unmeth count matrices. Ensure gamma and delta values are ordered according to column names of meth/wt count matrix")
+              }else if(any(is.null(names(b)) |
+                           names(b) != colnames(methcount) |
+                           names(b) != colnames(wtcount))){
+                stop("Names of delta vector are missing or do not match names of meth or unmeth count matrices. Ensure gamma and delta values are ordered according to column names of the meth/wt count matrix")
+              }else{
+                if(verbose){
+                  message("Yay, names of gamma & delta match column names of meth/wt count matrix.\n")
+                }
+              }
+            }
+            if(site_specific){
+              p_new <- Rfast::mat.mult(t((Rfast::eachrow(methcount, a, "*") + Rfast::eachrow(wtcount, b, "*"))), prep_gnt_tf[["2"]]) +
+                Rfast::mat.mult(t((Rfast::eachrow(methcount, b, "*")+Rfast::eachrow(wtcount, a, "*"))), prep_gnt_tf[["1"]])
+            }else{
+              p_new <- Rfast::mat.mult((Rfast::eachrow(methcount, a, "*") + Rfast::eachrow(wtcount, b, "*")), prep_gnt_tf[["2"]]) +
+                Rfast::mat.mult((Rfast::eachrow(methcount, b, "*")+Rfast::eachrow(wtcount, a, "*")), prep_gnt_tf[["1"]])
+            }
+            p <- p_new
+          }
+
         }else{
           if(length(a) == 1 & length(b) == 1){
             p = eigenMapMatMult2((a*methcount + b*wtcount), prep_gnt_tf[["2"]]) +
