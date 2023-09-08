@@ -478,7 +478,8 @@ generate_permutations <- function(n, m = m, only_one = FALSE){
 #'
 #' @examples
 #' \dontrun{
-#'
+#'    states_rates <- lapply(br_probs_new$branch, get_rate,
+#'    priors_w_idx = br_priors_w_idx, full_tree = full_tree)
 #' }
 get_rate <- function(branch,
                      priors_w_idx,
