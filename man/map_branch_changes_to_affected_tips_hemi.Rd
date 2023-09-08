@@ -19,6 +19,7 @@ Map changes to tips
 }
 \examples{
 \dontrun{
-
+    affected_tips <- mapply(map_branch_changes_to_affected_tips_hemi,
+    pr = priors, tree_ = one_tree_aslist, SIMPLIFY = FALSE)
 }
 }
