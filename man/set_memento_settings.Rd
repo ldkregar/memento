@@ -15,7 +15,8 @@ set_memento_settings(
   new_combs_list = NULL,
   new_tree_branch_is_snv = NULL,
   new_snv_rate_per_year = NULL,
-  new_num_bases_in_genome = NULL
+  new_num_bases_in_genome = NULL,
+  new_use_Rfast = NULL
 )
 }
 \arguments{
@@ -40,6 +41,8 @@ set_memento_settings(
 \item{new_snv_rate_per_year}{numeric number of SNVs per year (usually 20)}
 
 \item{new_num_bases_in_genome}{numeric number of bases in genome (3e9 for human)}
+
+\item{new_use_Rfast}{logical whether to use Rfast for matrix multiplication}
 }
 \description{
 Set memento settings
