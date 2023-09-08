@@ -97,6 +97,7 @@ getQMatrix <- function(df){
 the$Q <- getQMatrix(the$df_rate)
 the$useQ <- FALSE
 the$use_ff <- FALSE
+the$use_Rfast <- FALSE
 
 #' Report my default settings
 #'
@@ -116,7 +117,8 @@ memento_settings <- function() {
               "tree_branch_is_snv" = the$tree_branch_is_snv,
               "snv_rate_per_year" = the$snv_rate_per_year,
               "num_bases_in_genome" = the$num_bases_in_genome,
-              "human.snv.rate.per.base" = the$human.snv.rate.per.base))
+              "human.snv.rate.per.base" = the$human.snv.rate.per.base,
+              "use_Rfast" = the$use_Rfast))
 }
 
 ## @param human.snv.rate.per.base human snv rate per base (usually 20/3e9)
@@ -134,6 +136,7 @@ memento_settings <- function() {
 #' @param new_tree_branch_is_snv logical whether tree branch lengths are in SNVs
 #' @param new_snv_rate_per_year numeric number of SNVs per year (usually 20)
 #' @param new_num_bases_in_genome numeric number of bases in genome (3e9 for human)
+#' @param new_use_Rfast logical whether to use Rfast for matrix multiplication
 #'
 #' @export
 set_memento_settings <- function(new_number_of_states = NULL,
@@ -147,7 +150,8 @@ set_memento_settings <- function(new_number_of_states = NULL,
                                  new_combs_list = NULL,
                                  new_tree_branch_is_snv = NULL,
                                  new_snv_rate_per_year = NULL,
-                                 new_num_bases_in_genome = NULL){
+                                 new_num_bases_in_genome = NULL,
+                                 new_use_Rfast = NULL){
   old_num_states <- the$number_of_states
   if(!is.null(new_number_of_states)){
     the$number_of_states <- new_number_of_states
@@ -219,7 +223,9 @@ set_memento_settings <- function(new_number_of_states = NULL,
     the$num_bases_in_genome <- new_num_bases_in_genome
     the$human.snv.rate.per.base<- the$snv_rate_per_year/the$num_bases_in_genome
   }
-
+  if(!is.null(new_use_Rfast)){
+    the$use_Rfast <- new_use_Rfast
+  }
   invisible(old_num_states)
 }
 
@@ -260,6 +266,7 @@ set_memento_settings_to_default <- function(){
   the$useQ <- FALSE
   the$use_ff <- FALSE
   the$tree_branch_is_snv <- FALSE
+  the$use_Rfast <- FALSE
 }
 
 ignore_unused_imports <- function() {
