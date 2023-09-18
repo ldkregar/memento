@@ -509,6 +509,19 @@ get_rate <- function(branch,
   return(rate_result)
 }
 
+#' Produce matrix of affected tip and branches for the tree
+#'
+#' @param tree_ ape phylo object
+#'
+#' @return list of lists, tips: affected tips per branch (rows are branches,
+#' columns are affected tips), branch_children_only: all descendant branches of
+#' affected branch (branch hit is row, its descendants have 1 in their columns)
+#' @export
+#'
+#' @examples
+#' \dontrun{
+#'  children_matrices <- generate_tree_children_matrix(tree_ = tree)
+#' }
 generate_tree_children_matrix <- function(tree_){
   # tips
   children <- lapply(tree_$edge[,2], function(node1){
@@ -557,8 +570,28 @@ generate_tree_children_matrix <- function(tree_){
               "branch_children_only" = branch_children_only_mtx))
 }
 
-generate_expected_tip_states <- function(ss, changed_branches, change_types, tree){
-  children_matrices <- generate_tree_children_matrix(tree_ = tree)
+#' Prepare expected tip states given changes on branch
+#'
+#' @param ss integer starting state
+#' @param changed_branches vector of affected branches, either character (branches separated by _) or integer
+#' @param change_types vector of branch states, either character (branches separated by _) or integer
+#' @param tree ape phylo object
+#' @param children_matrices list of matrices of affected tips/branches
+#'
+#' @return vector of tip states
+#' @export
+#'
+#' @examples
+#' \dontrun{
+#'  tips <- generate_expected_tip_states(ss = 3, changed_branches = '29_56',
+#'  change_types = '8_8', tree = tree)
+#' }
+generate_expected_tip_states <- function(ss, changed_branches, change_types,
+                                         tree,
+                                         children_matrices = NULL){
+  if(is.null(children_matrices)){
+    children_matrices <- generate_tree_children_matrix(tree_ = tree)
+  }
   tip_child_mtx <- children_matrices$tips
 
   result <- rep(ss, length(tree$tip.label))
@@ -580,6 +613,61 @@ generate_expected_tip_states <- function(ss, changed_branches, change_types, tre
       cur_change <- change_types_split[i]
       new_state <- which(the$state_transition_mtx == cur_change, arr.ind = TRUE)[2]
       child_vector <- tip_child_mtx[cur_branch,]
+      result[as.logical(child_vector)] <- new_state
+    }
+  }
+  return(result)
+}
+
+#' Generate expected branch states given starting state, affected branches and state changes
+#'
+#' @param ss integer starting state
+#' @param changed_branches vector of affected branches, either character (branches separated by _) or integer
+#' @param change_types vector of branch states, either character (branches separated by _) or integer
+#' @param tree ape phylo object
+#' @param children_matrices list of matrices of affected tips/branches
+#'
+#' @return vector of branch states
+#' @export
+#'
+#' @examples
+#' \dontrun{
+#'  branch_states <- generate_expected_branch_states(ss = 3,
+#'  changed_branches = "29_56", change_types = "8_8", tree = tree)
+#' }
+generate_expected_branch_states <- function(ss, changed_branches, change_types,
+                                            tree,
+                                            children_matrices = NULL){
+  if(is.null(children_matrices)){
+    children_matrices <- generate_tree_children_matrix(tree_ = tree)
+  }
+  tip_child_mtx <- children_matrices$branch_children_only
+
+  result <- rep(the$state_transition_mtx[ss,ss], nrow(tree$edge))
+
+  if(changed_branches != "n"){
+    if(is.character(changed_branches)){
+      changed_branches_split <- as.numeric(strsplit(changed_branches, "_")[[1]])
+    }else{
+      changed_branches_split <- changed_branches
+    }
+    if(is.character(change_types)){
+      change_types_split <- as.numeric(strsplit(change_types, "_")[[1]])
+    }else{
+      change_types_split <- change_types
+    }
+    if(is.unsorted(changed_branches_split)){
+      new_order <- order(changed_branches_split)
+      changed_branches_split <- changed_branches_split[new_order]
+      change_types_split <- change_types_split[new_order]
+    }
+    for(i in 1:length(changed_branches_split)){
+      cur_branch <- changed_branches_split[i]
+      cur_change <- change_types_split[i]
+      result[cur_branch] <- cur_change
+      child_vector <- tip_child_mtx[cur_branch,]
+      new_state_p <- which(the$state_transition_mtx == cur_change, arr.ind = TRUE)[2]
+      new_state <- the$state_transition_mtx[new_state_p,new_state_p]
       result[as.logical(child_vector)] <- new_state
     }
   }
