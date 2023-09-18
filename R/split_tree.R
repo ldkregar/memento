@@ -1,3 +1,14 @@
+#' Breadth first search on a tree to get node order
+#'
+#' @param tree ape phylo object
+#'
+#' @return list of vector containing ordered explored nodes, and list with their level
+#' @export
+#'
+#' @examples
+#' \dontrun{
+#'   bfs_nodes <- bfs_node_order(tree)
+#' }
 bfs_node_order <- function(tree){
   root <- tree$edge[1,1]
 
