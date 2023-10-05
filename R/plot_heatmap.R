@@ -32,6 +32,9 @@ get_df_depth_mm <- function(mtx_list, chr_pos){
 #' @param show_bar logical: if you would like to plot a bar chart for just 1 site, requires meth_reads_list
 #' @param meth_reads_list list of methlyated and unmethylated read counts
 #' @param meth_reads_df data frame of methlyated and unmethylated read counts
+#' @param fill_by_exp_tip_state logical - when plotting single sites - fill the bar by expected tip state (alternative is filling by methylation rate)
+#' @param offset_by numeric distance between phylogeny and heatmap
+#' @param sort_by_gd character ("min", "max" or "no") to sort sites by sum of gamm and delta
 #'
 #' @return ggplot plot object
 #' @export
@@ -56,9 +59,12 @@ plot_heatmap <- function(assignment,
                          highlight_additional_nodes = NULL,
                          show_bar = FALSE,
                          meth_reads_list = NULL,
-                         meth_reads_df = NULL){
+                         meth_reads_df = NULL,
+                         fill_by_exp_tip_state = TRUE,
+                         offset_by = 30,
+                         sort_by_gd = "no"){
   branch = chr_pos = chrom_fct = Chrom = Pos = Affected = color = NULL
-  text1 = label = meth_r = depth = rate = NULL
+  text1 = label = meth_r = depth = rate = gamma = delta = inferred_s =  NULL
 
   full_dt_subset <- full_dt[branch == assignment,]
 
@@ -88,11 +94,28 @@ plot_heatmap <- function(assignment,
                                  state_explain)
     }
   }
-
-  if(length(specific_positions) > max_pos){
-    specific_positions <- sample(specific_positions, size = max_pos, replace = FALSE)
-    full_dt_subset <- full_dt_subset[chr_pos %in% specific_positions]
+  if(sort_by_gd == "no"){
+    if(length(specific_positions) > max_pos){
+      specific_positions <- sample(specific_positions,
+                                   size = min(max_pos,
+                                              length(specific_positions)),
+                                   replace = FALSE)
+      full_dt_subset <- full_dt_subset[chr_pos %in% specific_positions]
+    }
+  }else{
+    if(!all(c("gamma", "delta") %in% colnames(full_dt_subset))){
+      stop("To plot by min/max sum of gamma & delta, both columns gamma and delta must be present in the input data frame")
+    }
+    if(sort_by_gd == "min"){
+      full_dt_subset_min <- full_dt_subset[order(gamma+delta),][1:min(max_pos, length(specific_positions)),]
+      full_dt_subset <- full_dt_subset_min
+    }else if(sort_by_gd == "max"){
+      full_dt_subset_max <- full_dt_subset[order(gamma+delta, decreasing = TRUE),][1:min(max_pos, length(specific_positions)),]
+      full_dt_subset <- full_dt_subset_max
+    }
+    specific_positions <- full_dt_subset$chr_pos
   }
+
   # reorder positions by chromosome
   chrom_levels <- c(as.character(1:22), "X", "Y")
 
@@ -125,6 +148,9 @@ plot_heatmap <- function(assignment,
     pos_rates_flip <- pos_rates_mtx
   }
   pos_rates_flip[is.nan(pos_rates_flip)] <- NA
+  if(sort_by_gd %in% c("min", "max")){
+    pos_rates_flip <- pos_rates_flip[,specific_positions]
+  }
   if(the$number_of_states == 2){
     conversion <- c(0, 1)
     names(conversion) <- as.character(c(1:2))
@@ -262,27 +288,43 @@ plot_heatmap <- function(assignment,
                              ordered = TRUE)
       df_bar$rate <- df_bar$meth_r/df_bar$depth
 
+      df_bar$inferred_s <- as.character(plot_assignment_vector[match(df_bar$id, names(plot_assignment_vector))])
+
       p2 <- ggplot2::ggplot(df_bar, aes(label, meth_r)) +
         ggplot2::geom_col() +
         ggplot2::coord_flip()
       p2_depth <- ggplot2::ggplot(df_bar, aes(label, depth)) +
         ggplot2::geom_col() +
         ggplot2::coord_flip()
-      p2_combined <- ggplot2::ggplot(df_bar, aes(x = label)) +
-        ggplot2::geom_col(aes(y = depth), position = "identity", fill = "#bdbdbd") +
-        ggplot2::geom_col(aes(y = meth_r, fill = rate), position = "identity") +
-        ggplot2::scale_fill_gradient2(low = "#313695",
-                                      mid = "#ffffbf",
-                                      high = "#a50026",
-                                      midpoint = 0.5,
-                                      name = "Methylation\nratio",
-                                      limits = c(0,1)) +
-        ggplot2::labs(y = sprintf("%s: Read count (methylated overlaid on depth)", onesite)) +
-        ggplot2::coord_flip() +
-        ggplot2::theme_bw() +
-        ggplot2::theme(axis.text.y = ggplot2::element_blank(),
-              axis.ticks.y = ggplot2::element_blank(),
-              axis.title.y = ggplot2::element_blank())
+      if(fill_by_exp_tip_state){
+        p2_combined <- ggplot2::ggplot(df_bar, aes(x = label)) +
+          ggplot2::geom_col(aes(y = depth), position = "identity", fill = "#bdbdbd") +
+          ggplot2::geom_col(aes(y = meth_r, fill = inferred_s), position = "identity") +
+          ggplot2::scale_fill_manual(values = affected_tip_colors) +
+          ggplot2::labs(y = sprintf("%s: Read count (methylated overlaid on depth)", onesite)) +
+          ggplot2::coord_flip() +
+          ggplot2::theme_bw() +
+          ggplot2::theme(axis.text.y = ggplot2::element_blank(),
+                         axis.ticks.y = ggplot2::element_blank(),
+                         axis.title.y = ggplot2::element_blank())
+      }else{
+        p2_combined <- ggplot2::ggplot(df_bar, aes(x = label)) +
+          ggplot2::geom_col(aes(y = depth), position = "identity", fill = "#bdbdbd") +
+          ggplot2::geom_col(aes(y = meth_r, fill = rate), position = "identity") +
+          ggplot2::scale_fill_gradient2(low = "#313695",
+                                        mid = "#ffffbf",
+                                        high = "#a50026",
+                                        midpoint = 0.5,
+                                        name = "Methylation\nratio",
+                                        limits = c(0,1)) +
+          ggplot2::labs(y = sprintf("%s: Read count (methylated overlaid on depth)", onesite)) +
+          ggplot2::coord_flip() +
+          ggplot2::theme_bw() +
+          ggplot2::theme(axis.text.y = ggplot2::element_blank(),
+                         axis.ticks.y = ggplot2::element_blank(),
+                         axis.title.y = ggplot2::element_blank())
+      }
+
 
       p3_int <- p2_combined %>% aplot::insert_left(p1)
 
@@ -294,8 +336,7 @@ plot_heatmap <- function(assignment,
   }else{
     p3 <- suppressMessages(ggtree::gheatmap(p1,
                                             data=pos_rates_flip,
-                                            offset = 30,
-                                            # offset = ifelse(donor_id == "KX004", ifelse(include_tip_labels, 180, 30), 30)
+                                            offset = offset_by,
                                             colnames_angle=45,
                                             hjust = 1,
                                             color=NA,
