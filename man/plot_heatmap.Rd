@@ -18,7 +18,10 @@ plot_heatmap(
   highlight_additional_nodes = NULL,
   show_bar = FALSE,
   meth_reads_list = NULL,
-  meth_reads_df = NULL
+  meth_reads_df = NULL,
+  fill_by_exp_tip_state = TRUE,
+  offset_by = 30,
+  sort_by_gd = "no"
 )
 }
 \arguments{
@@ -49,6 +52,12 @@ plot_heatmap(
 \item{meth_reads_list}{list of methlyated and unmethylated read counts}
 
 \item{meth_reads_df}{data frame of methlyated and unmethylated read counts}
+
+\item{fill_by_exp_tip_state}{logical - when plotting single sites - fill the bar by expected tip state (alternative is filling by methylation rate)}
+
+\item{offset_by}{numeric distance between phylogeny and heatmap}
+
+\item{sort_by_gd}{character ("min", "max" or "no") to sort sites by sum of gamm and delta}
 }
 \value{
 ggplot plot object
