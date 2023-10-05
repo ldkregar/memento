@@ -287,9 +287,11 @@ impute_gamma_delta <- function(gd_vector, range = 10, fillwith = NULL){
 
 #' Obtain gamma and delta values per site
 #'
-#' @param assignments list of preliminary assignments on each subtree
-#' @param subtrees list of subtrees (each list element is an ape phylo object)
-#' @param full_tree ape phylo object of f ull tree
+#' @param assignments either list of preliminary assignments on each subtree or
+#' data.frame of post-MLE assignments
+#' @param subtrees either list of subtrees (each list element is an ape phylo
+#' object) or NULL if computing gamma & delta on post-MLE assignments
+#' @param full_tree ape phylo object of full tree
 #' @param meth_matrix matrix of methylated reads
 #' @param unmeth_matrix matrix of unmethylated reads
 #' @param matrix_list list of matrices (when running on phased data)
@@ -305,32 +307,52 @@ impute_gamma_delta <- function(gd_vector, range = 10, fillwith = NULL){
 #' unmeth_matrix = unmeth_mtx)
 #' }
 get_gamma_delta <- function(assignments,
-                            subtrees,
+                            subtrees = NULL,
                             full_tree,
                             meth_matrix = NULL,
                             unmeth_matrix = NULL,
                             matrix_list = NULL,
                             min_tips_in_s = 5){
-  dt_combined <- convert_branches(assignment_dts = assignments,
-                                  all_trees = subtrees,
-                                  full_tree_ = full_tree,
-                                  verbose1 = FALSE)
-  # filter to rank = 1
-  if("rank" %in% colnames(dt_combined)){
-    if(length(unique(dt_combined$rank)) > 1){
-      cat(sprintf("Rank column suggests there are several top solutions, filtering to rank = 1 only\n"))
-      dt_combined <- dt_combined[rank == 1,]
+  if(is.null(subtrees)){ # gamma & delta on full tree
+    # project assignment onto full tree
+    list_trees <- lapply(1:nrow(assignments), function(x) return(full_tree))
+    children_matrices_tmp <- generate_tree_children_matrix(tree_ = full_tree)
+    list_ch_mtx <- lapply(1:nrow(assignments), function(x) return(children_matrices_tmp))
+    ts_list <- mapply(generate_expected_tip_states,
+                      ss = assignments$starting_state,
+                      changed_branches = assignments$only_branch,
+                      change_types = assignments$branch_state,
+                      tree = list_trees,
+                      children_matrices = list_ch_mtx,
+                      SIMPLIFY = FALSE)
+    prelim_s_mtx <- do.call("rbind", ts_list)
+    rownames(prelim_s_mtx) <- assignments$chr_pos
+    colnames(prelim_s_mtx) <- full_tree$tip.label
+    # prepare prelim_s_mtx
+    # TODO: rbind list ts_list ?
+  }else{
+    dt_combined <- convert_branches(assignment_dts = assignments,
+                                    all_trees = subtrees,
+                                    full_tree_ = full_tree,
+                                    verbose1 = FALSE)
+    # filter to rank = 1
+    if("rank" %in% colnames(dt_combined)){
+      if(length(unique(dt_combined$rank)) > 1){
+        cat(sprintf("Rank column suggests there are several top solutions, filtering to rank = 1 only\n"))
+        dt_combined <- dt_combined[rank == 1,]
+      }
     }
+
+    # combine across sites
+    combined_by_chr_pos <- split(dt_combined, by = "chr_pos")
+
+    preliminary_solutions <- lapply(combined_by_chr_pos,
+                                    get_preliminary_solution,
+                                    subtrees = subtrees,
+                                    full = full_tree)
+    prelim_s_mtx <- do.call("rbind", preliminary_solutions)
   }
 
-  # combine across sites
-  combined_by_chr_pos <- split(dt_combined, by = "chr_pos")
-
-  preliminary_solutions <- lapply(combined_by_chr_pos,
-                                  get_preliminary_solution,
-                                  subtrees = subtrees,
-                                  full = full_tree)
-  prelim_s_mtx <- do.call("rbind", preliminary_solutions)
   if(the$number_of_states < 4){
     depth_matrix <- meth_matrix + unmeth_matrix
 
