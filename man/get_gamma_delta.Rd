@@ -6,7 +6,7 @@
 \usage{
 get_gamma_delta(
   assignments,
-  subtrees,
+  subtrees = NULL,
   full_tree,
   meth_matrix = NULL,
   unmeth_matrix = NULL,
@@ -15,11 +15,13 @@ get_gamma_delta(
 )
 }
 \arguments{
-\item{assignments}{list of preliminary assignments on each subtree}
+\item{assignments}{either list of preliminary assignments on each subtree or
+data.frame of post-MLE assignments}
 
-\item{subtrees}{list of subtrees (each list element is an ape phylo object)}
+\item{subtrees}{either list of subtrees (each list element is an ape phylo
+object) or NULL if computing gamma & delta on post-MLE assignments}
 
-\item{full_tree}{ape phylo object of f ull tree}
+\item{full_tree}{ape phylo object of full tree}
 
 \item{meth_matrix}{matrix of methylated reads}
 
