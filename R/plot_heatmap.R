@@ -35,6 +35,8 @@ get_df_depth_mm <- function(mtx_list, chr_pos){
 #' @param fill_by_exp_tip_state logical - when plotting single sites - fill the bar by expected tip state (alternative is filling by methylation rate)
 #' @param offset_by numeric distance between phylogeny and heatmap
 #' @param sort_by_gd character ("min", "max" or "no") to sort sites by sum of gamm and delta
+#' @param change_names named vector of all transitions, where the names are text that will replace corresponding transition
+#' @param highlight_extend how much to extend the node highlight by (default 20)
 #'
 #' @return ggplot plot object
 #' @export
@@ -62,9 +64,11 @@ plot_heatmap <- function(assignment,
                          meth_reads_df = NULL,
                          fill_by_exp_tip_state = TRUE,
                          offset_by = 30,
-                         sort_by_gd = "no"){
-  branch = chr_pos = chrom_fct = Chrom = Pos = Affected = color = NULL
-  text1 = label = meth_r = depth = rate = gamma = delta = inferred_s =  NULL
+                         highlight_extend = 20,
+                         sort_by_gd = "no",
+                         change_names = NULL){
+  branch = chr_pos = chrom_fct = Chrom = Affected = color = edge_text = NULL
+  text1 = label = meth_r = depth = rate = gamma = delta = inferred_s =Pos = NULL
 
   full_dt_subset <- full_dt[branch == assignment,]
 
@@ -172,7 +176,7 @@ plot_heatmap <- function(assignment,
   # plot_assignment_vector <- plot_assignment_vector[names(plot_assignment_vector) %in% tree$tip.label]
   plot_assignment_df <- data.frame(row.names = names(plot_assignment_vector),
                                    label = names(plot_assignment_vector),
-                                   Affected = as.factor(plot_assignment_vector))
+                                   Affected = factor(plot_assignment_vector, levels = conversion, ordered = TRUE))
   tb <- tidytree::as_tibble(tree)
   tb2 <- full_join(tb, plot_assignment_df, by = "label")
 
@@ -208,12 +212,12 @@ plot_heatmap <- function(assignment,
   #max_x <- ifelse(donor_id == "KX004", ifelse(include_tip_labels, 1600, 1500), 80)
   p1 <- ggtree::ggtree(new_tree, ladderize = FALSE) +
     ggtree::geom_tippoint(aes(color=Affected)) +
-    ggtree::scale_color_manual(values = affected_tip_colors) +
+    ggtree::scale_color_manual(values = affected_tip_colors, drop=FALSE) +
     ggplot2::guides(color=ggplot2::guide_legend(title=sprintf("Expected\ntip state%s",
                                                               ifelse(the$number_of_states == 4,
                                                                      " (MP)",
                                                                      ""))))
-
+  #p1 <- p1 + ggtree::theme_tree2()
   if(include_tip_labels){
     p1 <- p1 +
       ggtree::geom_tiplab(size = 2, hjust = -0.2)
@@ -231,22 +235,39 @@ plot_heatmap <- function(assignment,
     p1 <- p1 +
       ggtree::geom_hilight(node = nodes,
                    fill = edge_change_colours[edge_changes],
-                   extend = 20,
+                   extend = highlight_extend,
                    alpha = 0.4)
   }
   if(!is.null(highlight_additional_nodes)){
     p1 <- p1 +
       ggtree::geom_hilight(node = highlight_additional_nodes,
                            fill = "#808080",
-                           extend = 20,
+                           extend = highlight_extend,
                            alpha = 0.4)
   }
   if(is.null(custom_title)){
-    custom_title <-sprintf("Assigned to %s;\ntransition(s): %s, respectively;\nstarting state%s: %s",
+    custom_title <-sprintf("Assigned to %s;\n%s transition(s): %s, respectively;\nstarting state%s: %s",
                            paste0(edges, collapse = ", "),
+                           paste0(ifelse(only_branch == "n", 0, length(edges))),
                            paste0(strsplit(only_states, "_")[[1]], collapse = ", "),
                            ifelse(the$number_of_states == 4, " (MP)", ""),
                            as.character(ss))
+
+    if(!is.null(change_names)){
+      just_trans_txt <- strsplit(only_states, "_")[[1]]
+      if("n" %in% just_trans_txt){
+        warning("Cannot rename transitions because there's a character present, must be all numeric")
+      }else{
+        just_trans_num <- as.numeric(just_trans_txt)
+        renamed_trans <- names(change_names)[match(just_trans_num, change_names)]
+        custom_title <-sprintf("Assigned to %s;\n%s transition(s): %s, respectively;\nstarting state%s: %s",
+                               paste0(edges, collapse = ", "),
+                               paste0(ifelse(only_branch == "n", 0, length(edges))),
+                               paste0(renamed_trans, collapse = ", "),
+                               ifelse(the$number_of_states == 4, " (MP)", ""),
+                               as.character(ss))
+      }
+    }
   }
 
   if(only_branch != "n" | !is.null(highlight_additional_nodes)){
@@ -260,8 +281,10 @@ plot_heatmap <- function(assignment,
     all_nodes <- c(highlight_additional_nodes, nodes)
     associated_edges <- match(all_nodes, tree$edge[,2])
     names(all_nodes) <- as.character(associated_edges)
-    p1_tmp$data$text1 <- names(all_nodes)[match(p1_tmp$data$node, all_nodes)]
-    p1 <- p1_tmp + ggtree::geom_nodelab(geom='label', aes(label = text1), node = "all", size = 2)
+    #p1_tmp$data$text1 <- names(all_nodes)[match(p1_tmp$data$node, all_nodes)]
+    #p1 <- p1_tmp + ggtree::geom_nodelab(geom='label', aes(label = text1), node = "all", size = 2)
+    p1_tmp$data$edge_text <- names(all_nodes)[match(p1_tmp$data$node, all_nodes)]
+    p1 <- p1_tmp  + ggtree::geom_label2(aes(x=branch, label=edge_text), size = 2) #, subset = !is.na(p1_tmp$data$edge_text)) #geom='label', aes(label = text1), node = "all", size = 2)
   }
 
   if(show_bar){
@@ -306,7 +329,8 @@ plot_heatmap <- function(assignment,
           ggplot2::theme_bw() +
           ggplot2::theme(axis.text.y = ggplot2::element_blank(),
                          axis.ticks.y = ggplot2::element_blank(),
-                         axis.title.y = ggplot2::element_blank())
+                         axis.title.y = ggplot2::element_blank(),
+                         legend.position = "none")
       }else{
         p2_combined <- ggplot2::ggplot(df_bar, aes(x = label)) +
           ggplot2::geom_col(aes(y = depth), position = "identity", fill = "#bdbdbd") +
