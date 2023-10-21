@@ -21,7 +21,9 @@ plot_heatmap(
   meth_reads_df = NULL,
   fill_by_exp_tip_state = TRUE,
   offset_by = 30,
-  sort_by_gd = "no"
+  highlight_extend = 20,
+  sort_by_gd = "no",
+  change_names = NULL
 )
 }
 \arguments{
@@ -57,7 +59,11 @@ plot_heatmap(
 
 \item{offset_by}{numeric distance between phylogeny and heatmap}
 
+\item{highlight_extend}{how much to extend the node highlight by (default 20)}
+
 \item{sort_by_gd}{character ("min", "max" or "no") to sort sites by sum of gamm and delta}
+
+\item{change_names}{named vector of all transitions, where the names are text that will replace corresponding transition}
 }
 \value{
 ggplot plot object
