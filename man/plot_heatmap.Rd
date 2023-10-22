@@ -23,7 +23,8 @@ plot_heatmap(
   offset_by = 30,
   highlight_extend = 20,
   sort_by_gd = "no",
-  change_names = NULL
+  change_names = NULL,
+  heatmap_width = 1
 )
 }
 \arguments{
@@ -64,6 +65,8 @@ plot_heatmap(
 \item{sort_by_gd}{character ("min", "max" or "no") to sort sites by sum of gamm and delta}
 
 \item{change_names}{named vector of all transitions, where the names are text that will replace corresponding transition}
+
+\item{heatmap_width}{width of heatmap relative to tree, default is 1}
 }
 \value{
 ggplot plot object
