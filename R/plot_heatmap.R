@@ -37,6 +37,7 @@ get_df_depth_mm <- function(mtx_list, chr_pos){
 #' @param sort_by_gd character ("min", "max" or "no") to sort sites by sum of gamm and delta
 #' @param change_names named vector of all transitions, where the names are text that will replace corresponding transition
 #' @param highlight_extend how much to extend the node highlight by (default 20)
+#' @param heatmap_width width of heatmap relative to tree, default is 1
 #'
 #' @return ggplot plot object
 #' @export
@@ -66,7 +67,8 @@ plot_heatmap <- function(assignment,
                          offset_by = 30,
                          highlight_extend = 20,
                          sort_by_gd = "no",
-                         change_names = NULL){
+                         change_names = NULL,
+                         heatmap_width = 1){
   branch = chr_pos = chrom_fct = Chrom = Affected = color = edge_text = NULL
   text1 = label = meth_r = depth = rate = gamma = delta = inferred_s =Pos = NULL
 
@@ -153,7 +155,7 @@ plot_heatmap <- function(assignment,
   }
   pos_rates_flip[is.nan(pos_rates_flip)] <- NA
   if(sort_by_gd %in% c("min", "max")){
-    pos_rates_flip <- pos_rates_flip[,specific_positions]
+    pos_rates_flip <- pos_rates_flip[,specific_positions,drop=FALSE]
   }
   if(the$number_of_states == 2){
     conversion <- c(0, 1)
@@ -364,7 +366,8 @@ plot_heatmap <- function(assignment,
                                             colnames_angle=45,
                                             hjust = 1,
                                             color=NA,
-                                            font.size = 2) +
+                                            font.size = 2,
+                                            width = heatmap_width) +
                              ggtree::scale_x_ggtree() +
                              ggtree::vexpand(.1, -1) +
                              ggplot2::scale_fill_gradient2(low = "#313695",
