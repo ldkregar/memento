@@ -730,6 +730,7 @@ compute_probabilities <- function(priors_per_tree,
 #' @param max_loops_ max number of branches to drop
 #' @param site_specific whether gamma and delta are site specific (alternative
 #' is colony specific)
+#' @param loop_through_all logical - whether to drop all candidate branches until n_to_permute = 0
 #'
 #' @return data.table of most likely solution
 #' @export
@@ -759,7 +760,8 @@ get_mle <- function(branches,
                     n_top_branches = 1,
                     delete_intermediate_matrices = TRUE,
                     max_loops_ = NULL,
-                    site_specific = TRUE){
+                    site_specific = TRUE,
+                    loop_through_all = FALSE){
   # branches <- assignment_space[[4]]
   # sites <- assignment_sites[[4]]
   chr_pos = branch = starting_state  = probability = only_branch = n_assignments = branch_state = NULL
@@ -787,12 +789,13 @@ get_mle <- function(branches,
       stop("Max loops must be at least one")
     }
   }
-  while(p_last & while_counter < while_counter_limit){
+  n_branches <- length(branches_split)
+  # while(p_last & while_counter < while_counter_limit){
+  while(p_last){
     while_counter <- while_counter + 1
     if(verbose_) cat(sprintf("n branches to permute: %i\t", n_to_permute))
 
     if(branches != "n" & n_to_permute > 0){
-      n_branches <- length(branches_split)
       # generate all possible permutations of up to n_branches
       br_permut <- generate_permutations(n = n_branches,
                                          m = n_to_permute,
@@ -939,46 +942,83 @@ get_mle <- function(branches,
           return(length(gg))
         })
 
-        if(all(n_as_per_win_idx > n_to_permute) | while_counter == while_counter_limit | n_to_permute == 0){ #if all best set are not in the smallest set, exit while loop
+        # if you're not in smallest set and you are happy with local optimal solution (you dont explore all -> exit while loop)
+        if(all(n_as_per_win_idx > n_to_permute) & loop_through_all == FALSE){
           p_last <- FALSE
-          # also update br_max_lik matrix
-          dt_prob <- data.table::data.table(do.call("rbind", ranked_max_per_row_prob))
-          colnames(dt_prob) <- as.character(c(1:n_top_branches))
-          dt_prob[, chr_pos := names(ranked_max_per_row_prob)]
-
-          dt_solution <- data.table::data.table(do.call("rbind", ranked_max_per_row_ind_prob))
-          colnames(dt_solution) <- as.character(c(1:n_top_branches))
-          dt_solution[, chr_pos := names(ranked_max_per_row_ind_prob)]
-
-          dt_prob_molten <- data.table::melt(dt_prob, id.vars = c("chr_pos"),
-                                             value.name = "probability",
-                                             variable.name = "rank")
-
-          dt_sol_molten <- data.table::melt(dt_solution, id.vars = c("chr_pos"),
-                                            value.name = "branch",
-                                            variable.name = "rank")
-
-          dt_sol_molten[, c("only_branch", "starting_state", "branch_state") := tstrsplit(branch, "\\.|:")]
-          dt_sol_molten[, starting_state := as.numeric(starting_state)]
-          dt_new <- data.table::merge.data.table(dt_prob_molten, dt_sol_molten, by = c("chr_pos", "rank"))
-          dt_new[, rank := as.numeric(rank)]
-          new_br_max_lik <- dt_new
         }
 
+        # loop_through_all
+        # if(all(n_as_per_win_idx > n_to_permute) | while_counter == while_counter_limit | n_to_permute == 0){ #if all best set are not in the smallest set, exit while loop
+        #   p_last <- FALSE
+          # also update br_max_lik matrix
+          # dt_prob <- data.table::data.table(do.call("rbind", ranked_max_per_row_prob))
+          # colnames(dt_prob) <- as.character(c(1:n_top_branches))
+          # dt_prob[, chr_pos := names(ranked_max_per_row_prob)]
+          #
+          # dt_solution <- data.table::data.table(do.call("rbind", ranked_max_per_row_ind_prob))
+          # colnames(dt_solution) <- as.character(c(1:n_top_branches))
+          # dt_solution[, chr_pos := names(ranked_max_per_row_ind_prob)]
+          #
+          # dt_prob_molten <- data.table::melt(dt_prob, id.vars = c("chr_pos"),
+          #                                    value.name = "probability",
+          #                                    variable.name = "rank")
+          #
+          # dt_sol_molten <- data.table::melt(dt_solution, id.vars = c("chr_pos"),
+          #                                   value.name = "branch",
+          #                                   variable.name = "rank")
+          #
+          # dt_sol_molten[, c("only_branch", "starting_state", "branch_state") := tstrsplit(branch, "\\.|:")]
+          # dt_sol_molten[, starting_state := as.numeric(starting_state)]
+          # dt_new <- data.table::merge.data.table(dt_prob_molten, dt_sol_molten, by = c("chr_pos", "rank"))
+          # dt_new[, rank := as.numeric(rank)]
+          # new_br_max_lik <- dt_new
+        # }
+
       }
 
+      # if(while_counter == while_counter_limit | n_to_permute == 0){ #if all best set are not in the smallest set, exit while loop
+      #   p_last <- FALSE
+      # }
       # if max is smallest set, compute for smaller perm
       n_to_permute <- n_to_permute - 1
-      if(n_to_permute < 0){
+      # if(n_to_permute < 0){
+      if(n_to_permute < 0 | while_counter >= while_counter_limit){
         p_last <- FALSE
       }
+
     }else{
       # assigned to root, can exit while
       p_last <- FALSE
-
-      new_br_max_lik <- br_probs_new[, list(chr_pos, rank, probability, branch, only_branch, starting_state, branch_state)]
+      # new_br_max_lik <- br_probs_new[, list(chr_pos, rank, probability, branch, only_branch, starting_state, branch_state)]
     }
   }
+
+  if(branches != "n"){
+    dt_prob <- data.table::data.table(do.call("rbind", ranked_max_per_row_prob))
+    colnames(dt_prob) <- as.character(c(1:n_top_branches))
+    dt_prob[, chr_pos := names(ranked_max_per_row_prob)]
+
+    dt_solution <- data.table::data.table(do.call("rbind", ranked_max_per_row_ind_prob))
+    colnames(dt_solution) <- as.character(c(1:n_top_branches))
+    dt_solution[, chr_pos := names(ranked_max_per_row_ind_prob)]
+
+    dt_prob_molten <- data.table::melt(dt_prob, id.vars = c("chr_pos"),
+                                       value.name = "probability",
+                                       variable.name = "rank")
+
+    dt_sol_molten <- data.table::melt(dt_solution, id.vars = c("chr_pos"),
+                                      value.name = "branch",
+                                      variable.name = "rank")
+
+    dt_sol_molten[, c("only_branch", "starting_state", "branch_state") := tstrsplit(branch, "\\.|:")]
+    dt_sol_molten[, starting_state := as.numeric(starting_state)]
+    dt_new <- data.table::merge.data.table(dt_prob_molten, dt_sol_molten, by = c("chr_pos", "rank"))
+    dt_new[, rank := as.numeric(rank)]
+    new_br_max_lik <- dt_new
+  }else{
+    new_br_max_lik <- br_probs_new[, list(chr_pos, rank, probability, branch, only_branch, starting_state, branch_state)]
+  }
+
   new_br_max_lik[,n_assignments := sapply(only_branch, function(x){
     y <- strsplit(x, "_")[[1]]
     if(all(y == "n")){
@@ -1033,6 +1073,7 @@ get_mle <- function(branches,
 #' @param max_loops integer maximum number of branches to drop when permuting candidate branches
 #' @param site_specific logical: if providing gammas & deltas, are they colony or site specific
 #' @param force_starting_state logical: should only certain start states be explored?
+#' @param loop_through_all logical - whether to drop all candidate branches until n_to_permute = 0
 #'
 #' @return data.table of final assignments
 #' @export
@@ -1063,7 +1104,8 @@ find_most_likely_set <- function(dt_pre,
                                  priors_per_branch = NULL,
                                  max_loops = NULL,
                                  site_specific = TRUE,
-                                 force_starting_state = FALSE){
+                                 force_starting_state = FALSE,
+                                 loop_through_all = FALSE){
   chr_pos = combined_branch = Chrom = Pos = NULL
   if(all(is.na(gamma)  & is.na(delta))){
     stopifnot("Must provide gamma and delta or ro values." = !is.na(ro))
@@ -1187,7 +1229,8 @@ find_most_likely_set <- function(dt_pre,
                       delete_intermediate_matrices = delete_matrices_from_hash,
                       max_loops_ = max_loops,
                       site_specific = site_specific,
-                      forced_starting_states = fss[[counter]])
+                      forced_starting_states = fss[[counter]],
+                      loop_through_all = loop_through_all)
     data.table::setnames(tmp_df, "n_assignments", "n_assignments_mle")
     dt_post <- data.table::merge.data.table(dt_pre, tmp_df, all.y = TRUE, by = "chr_pos")
     if(!is.null(dt_anno)){
