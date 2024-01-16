@@ -18,7 +18,8 @@ get_mle(
   n_top_branches = 1,
   delete_intermediate_matrices = TRUE,
   max_loops_ = NULL,
-  site_specific = TRUE
+  site_specific = TRUE,
+  loop_through_all = FALSE
 )
 }
 \arguments{
@@ -53,6 +54,8 @@ be deleted}
 
 \item{site_specific}{whether gamma and delta are site specific (alternative
 is colony specific)}
+
+\item{loop_through_all}{logical - whether to drop all candidate branches until n_to_permute = 0}
 }
 \value{
 data.table of most likely solution
