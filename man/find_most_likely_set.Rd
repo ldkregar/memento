@@ -25,7 +25,8 @@ find_most_likely_set(
   priors_per_branch = NULL,
   max_loops = NULL,
   site_specific = TRUE,
-  force_starting_state = FALSE
+  force_starting_state = FALSE,
+  loop_through_all = FALSE
 )
 }
 \arguments{
@@ -70,6 +71,8 @@ find_most_likely_set(
 \item{site_specific}{logical: if providing gammas & deltas, are they colony or site specific}
 
 \item{force_starting_state}{logical: should only certain start states be explored?}
+
+\item{loop_through_all}{logical - whether to drop all candidate branches until n_to_permute = 0}
 }
 \value{
 data.table of final assignments
