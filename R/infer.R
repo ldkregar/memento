@@ -110,10 +110,16 @@ compute_probabilities <- function(priors_per_tree,
     a=log(ro)
     b=log(1-ro)
     c=log(0.5)
+    d-log(0.5)
+    e=log(1-ro)
+    f=log(ro)
   }else{
     a=log(1-gamma)
     b=log(delta)
-    c=log(0.5)
+    c=log((1+delta-gamma)/2)
+    d=log((1+gamma-delta)/2)
+    e=log(gamma)
+    f=log(1-delta)
   }
 
   prior1=matrix(rep(only_prior_values_2, nsites),
@@ -134,17 +140,17 @@ compute_probabilities <- function(priors_per_tree,
         #   (ff::as.ff((b*methcount+a*wtcount)))[] %*% (ff::as.ff(prep_gnt_tf[["1"]]))[]
         #profvis({
           p=methods::as((a*methcount + b*wtcount), "HDF5Matrix") %*% methods::as(prep_gnt_tf[["3"]], "HDF5Matrix") +
-            methods::as(c*(methcount+wtcount), "HDF5Matrix") %*% methods::as(prep_gnt_tf[["2"]], "HDF5Matrix") +
-            methods::as((b*methcount+a*wtcount), "HDF5Matrix") %*% methods::as(prep_gnt_tf[["1"]], "HDF5Matrix")
+            methods::as((c*methcount + d*wtcount), "HDF5Matrix") %*% methods::as(prep_gnt_tf[["2"]], "HDF5Matrix") +
+            methods::as((e*methcount + f*wtcount), "HDF5Matrix") %*% methods::as(prep_gnt_tf[["1"]], "HDF5Matrix")
           #})
       }else if(the$use_Rfast){
         p=Rfast::mat.mult((a*methcount + b*wtcount), prep_gnt_tf[["3"]]) +
-          Rfast::mat.mult(c*(methcount+wtcount), prep_gnt_tf[["2"]]) +
-          Rfast::mat.mult((b*methcount+a*wtcount), prep_gnt_tf[["1"]])
+          Rfast::mat.mult((c*methcount + d*wtcount), prep_gnt_tf[["2"]]) +
+          Rfast::mat.mult((e*methcount + f*wtcount), prep_gnt_tf[["1"]])
       }else{
         p=eigenMapMatMult2((a*methcount + b*wtcount), prep_gnt_tf[["3"]]) +
-          eigenMapMatMult2(c*(methcount+wtcount), prep_gnt_tf[["2"]]) +
-          eigenMapMatMult2((b*methcount+a*wtcount), prep_gnt_tf[["1"]])
+          eigenMapMatMult2((c*methcount + d*wtcount), prep_gnt_tf[["2"]]) +
+          eigenMapMatMult2((e*methcount + f*wtcount), prep_gnt_tf[["1"]])
       }
     }else{
       if(site_specific){
