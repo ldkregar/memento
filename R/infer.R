@@ -110,15 +110,15 @@ compute_probabilities <- function(priors_per_tree,
     a=log(ro)
     b=log(1-ro)
     c=log(0.5)
-    d-log(0.5)
+    d=log(0.5)
     e=log(1-ro)
     f=log(ro)
   }else{
     a=log(1-gamma)
-    b=log(delta)
+    b=log(gamma)
     c=log((1+delta-gamma)/2)
     d=log((1+gamma-delta)/2)
-    e=log(gamma)
+    e=log(delta)
     f=log(1-delta)
   }
 
@@ -133,7 +133,7 @@ compute_probabilities <- function(priors_per_tree,
                   dim(wtcount)[1], dim(wtcount)[2],
                   dim(prep_gnt_tf[["3"]])[1], dim(prep_gnt_tf[["3"]])[2]))
     }
-    if(length(a) == 1 & length(b) == 1 & length(c) == 1){
+    if(length(a) == 1 & length(e) == 1 & length(c) == 1){
       if(the$use_ff){
         # p = (ff::as.ff(a*methcount + b*wtcount))[] %*% (ff::as.ff(prep_gnt_tf[["3"]]))[] +
         #   (ff::as.ff(c*(methcount+wtcount)))[] %*% (ff::as.ff(prep_gnt_tf[["2"]]))[] +
@@ -157,8 +157,12 @@ compute_probabilities <- function(priors_per_tree,
         if(length(a) > nrow(methcount)){
           a <- a[match(rownames(methcount), names(a))]
           b <- b[match(rownames(methcount), names(b))]
+          c <- c[match(rownames(methcount), names(c))]
+          d <- d[match(rownames(methcount), names(d))]
+          e <- e[match(rownames(methcount), names(e))]
+          f <- f[match(rownames(methcount), names(f))]
         }
-        if(all(names(a) == names(b)) & all(names(a) == rownames(methcount)) & all(names(a) == rownames(wtcount))){
+        if(all(names(a) == names(e)) & all(names(a) == rownames(methcount)) & all(names(a) == rownames(wtcount))){
           # transpose matrix so you can do eachrow next
           methcount <- t(methcount)
           wtcount <- t(wtcount)
@@ -180,13 +184,13 @@ compute_probabilities <- function(priors_per_tree,
           }
         }
       }
-      c_vec <- rep(c, ncol(methcount))
 
       tmp1 <- Rfast::eachrow(methcount, a, "*")
       tmp2 <- Rfast::eachrow(wtcount, b, "*")
-      tmp3 <- Rfast::eachrow((methcount + wtcount), c_vec, "*")
-      tmp4 <- Rfast::eachrow(methcount, b, "*")
-      tmp5 <- Rfast::eachrow(wtcount, a, "*")
+      tmp3 <- Rfast::eachrow(methcount, c, "*")
+      tmp4 <- Rfast::eachrow(wtcount, d, "*")
+      tmp5 <- Rfast::eachrow(methcount, e, "*")
+      tmp6 <- Rfast::eachrow(wtcount, f, "*")
 
       if(site_specific){
         tmp1 <- t(tmp1)
@@ -194,6 +198,7 @@ compute_probabilities <- function(priors_per_tree,
         tmp3 <- t(tmp3)
         tmp4 <- t(tmp4)
         tmp5 <- t(tmp5)
+        tmp6 <- t(tmp6)
       }
 
       if(the$use_ff){
@@ -202,16 +207,16 @@ compute_probabilities <- function(priors_per_tree,
         #   (ff::as.ff(tmp4 + tmp5))[] %*% (ff::as.ff(prep_gnt_tf[["1"]]))[]
 
         new_p <- methods::as((tmp1+tmp2), "HDF5Matrix") %*% methods::as(prep_gnt_tf[["3"]], "HDF5Matrix") +
-          methods::as(tmp3, "HDF5Matrix") %*% methods::as(prep_gnt_tf[["2"]], "HDF5Matrix") +
-          methods::as((tmp4 + tmp5), "HDF5Matrix") %*% methods::as(prep_gnt_tf[["1"]], "HDF5Matrix")
+          methods::as((tmp3+tmp4), "HDF5Matrix") %*% methods::as(prep_gnt_tf[["2"]], "HDF5Matrix") +
+          methods::as((tmp5 + tmp6), "HDF5Matrix") %*% methods::as(prep_gnt_tf[["1"]], "HDF5Matrix")
       }else if(the$use_Rfast){
         new_p <- Rfast::mat.mult((tmp1+tmp2), prep_gnt_tf[["3"]]) +
-          Rfast::mat.mult(tmp3, prep_gnt_tf[["2"]]) +
-          Rfast::mat.mult((tmp4 + tmp5), prep_gnt_tf[["1"]])
+          Rfast::mat.mult((tmp3+tmp4), prep_gnt_tf[["2"]]) +
+          Rfast::mat.mult((tmp5 + tmp6), prep_gnt_tf[["1"]])
       }else{
         new_p <- eigenMapMatMult2((tmp1+tmp2), prep_gnt_tf[["3"]]) +
-          eigenMapMatMult2(tmp3, prep_gnt_tf[["2"]]) +
-          eigenMapMatMult2((tmp4 + tmp5), prep_gnt_tf[["1"]])
+          eigenMapMatMult2((tmp3+tmp4), prep_gnt_tf[["2"]]) +
+          eigenMapMatMult2((tmp5 + tmp6), prep_gnt_tf[["1"]])
       }
       p <- new_p
       }
