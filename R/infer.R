@@ -22,6 +22,7 @@
 #' colony specific?
 #' @param use_ff_fully logical: whether to use ff fully or just for computing
 #' probabilities
+#' @param top_assignment_per_state logical: whether to report best assignment for each starting state
 #'
 #' @return data.table of probabilities and solutions
 #' @export
@@ -43,7 +44,8 @@ compute_probabilities <- function(priors_per_tree,
                                   hash_name = NA,
                                   current_comb = NA,
                                   site_specific = TRUE,
-                                  use_ff_fully = FALSE){
+                                  use_ff_fully = FALSE,
+                                  top_assignment_per_state = FALSE){
   chr_pos = branch = only_branch = starting_state = rank = n_assignments = Chrom = Pos = NULL
   if(length(priors_per_tree) == 1){
     only_one <- TRUE
@@ -68,7 +70,15 @@ compute_probabilities <- function(priors_per_tree,
   vector_col_names <- unlist(new_col_names)
   genotype_matrix <- do.call("cbind", genotype_vectors)
   colnames(genotype_matrix) <- vector_col_names
-
+  if(top_assignment_per_state){ # get which SS are the genotypes in
+    test_pattern <- "(?<=\\.).*(?=:)"
+    genotype_vec_ss <- regmatches(vector_col_names,
+                                  gregexpr(test_pattern,
+                                           vector_col_names,
+                                           perl=TRUE))
+    genotype_vec_ss <- as.numeric(genotype_vec_ss)
+    unq_ss <- sort(unique(genotype_vec_ss))
+  }
   if(verbose){
     cat(sprintf("Now working on tree with %i tips: %s\n",
                 length(one_tree$tip.label),
@@ -106,7 +116,7 @@ compute_probabilities <- function(priors_per_tree,
   only_prior_values_2 <- sapply(only_prior_values_1, "[[", 1)
 
   if(all(is.na(gamma)  & is.na(delta))){
-    stopifnot("Must provide gamma and delta or ro values." = !is.na(ro))
+    stopifnot("Must provide gamma and delta or ro values." =! is.na(ro))
     a=log(ro)
     b=log(1-ro)
     c=log(0.5)
@@ -593,7 +603,7 @@ compute_probabilities <- function(priors_per_tree,
           }
       }
   if(is.null(colnames(p))){
-    colnames(p) <- colnames(prep_gnt_tf[["1"]])
+    colnames(p) <- vector_col_names #colnames(prep_gnt_tf[["1"]])
   }
 
   if(is.null(rownames(p))){
@@ -608,7 +618,7 @@ compute_probabilities <- function(priors_per_tree,
   if(!is.na(hash_name)){
     the$global_hash_list[[hash_name]][["raw_vals"]][[as.character(current_comb)]] <- list(raw_val)
   }
-
+  # add top_assignment_per_state
   if(use_ff_fully & the$use_ff){
     raw_rowsum <- DelayedArray::rowSums(raw_val)
 
@@ -645,25 +655,64 @@ compute_probabilities <- function(priors_per_tree,
     max_prob <- exp(max_subtracted) / apply(exp(max_subtracted), 1, sum)
 
     how_many <- min(n_top_br, ncol(max_prob))
-    comb_name <- colnames(max_prob)
 
-    max_prob_both <- apply(max_prob, 1, function(x){
-      sort(x, decreasing = TRUE)[1:how_many]
-    }, simplify = FALSE)
+    if(top_assignment_per_state){
+      # get top assignment per each SS
+      # genotype_vec_ss
+      max_prob_ss_values <- lapply(unq_ss, function(somess){
+        # apply(max_prob[, somess == genotype_vec_ss], 1, max)
+        apply(max_prob[, somess == genotype_vec_ss], 1, function(x){
+          sort(x, decreasing = TRUE)[1:how_many]
+        }, simplify = FALSE)
+      })
+      max_prob_ss_indices <- lapply(max_prob_ss_values, function(ss_list){
+        lapply(ss_list, function(x) names(x))
+      })
 
-    max_prob_values <- max_prob_both
+      # max_prob_values and max_prob_indices must be list, where each item is of length n_top_br
+      # max_prob_values <- do.call("c", max_prob_ss_values)
+      # max_prob_values <- mapply(c, max_prob_ss_values, SIMPLIFY = FALSE)
+      max_prob_values <- lapply(c(1:length(max_prob_ss_values[[1]])), function(x){
+        return(unlist(lapply(max_prob_ss_values, function(y){y[[x]]})))
+      })
 
-    max_prob_indices <- lapply(max_prob_both, function(oneset){
-      return(names(oneset))
-    })
+      max_prob_indices <- lapply(c(1:length(max_prob_ss_indices[[1]])), function(x){
+        return(unlist(lapply(max_prob_ss_indices, function(y){y[[x]]})))
+      })
+
+    }else{
+
+      comb_name <- colnames(max_prob)
+
+      max_prob_both <- apply(max_prob, 1, function(x){
+        sort(x, decreasing = TRUE)[1:how_many]
+      }, simplify = FALSE)
+
+      max_prob_values <- max_prob_both
+
+      max_prob_indices <- lapply(max_prob_both, function(oneset){
+        return(names(oneset))
+      })
+    }
+
   }
 
   dt_prob <- data.table::data.table(do.call("rbind", max_prob_values))
-  colnames(dt_prob) <- as.character(c(1:n_top_br))
+  if(top_assignment_per_state){
+    colnames(dt_prob) <- paste0("ss", rep(unq_ss, each = n_top_br), ",rank_", as.character(c(1:n_top_br)))
+  }else{
+    colnames(dt_prob) <- as.character(c(1:n_top_br))
+  }
+
   dt_prob[, chr_pos := all_sites]
 
   dt_solution <- data.table::data.table(do.call("rbind", max_prob_indices))
-  colnames(dt_solution) <- as.character(c(1:n_top_br))
+  if(top_assignment_per_state){
+    colnames(dt_solution) <- paste0("ss", rep(unq_ss, each = n_top_br), ",rank_", as.character(c(1:n_top_br)))
+  }else{
+    colnames(dt_solution) <- as.character(c(1:n_top_br))
+  }
+
   dt_solution[, chr_pos := all_sites]
 
   dt_prob_molten <- data.table::melt(dt_prob, id.vars = c("chr_pos"),
@@ -677,7 +726,11 @@ compute_probabilities <- function(priors_per_tree,
   dt_sol_molten[, c("only_branch", "starting_state", "branch_state") := tstrsplit(branch, "\\.|:")]
   dt_sol_molten[, starting_state := as.numeric(starting_state)]
   dt_new <- data.table::merge.data.table(dt_prob_molten, dt_sol_molten, by = c("chr_pos", "rank"))
-  dt_new[, rank := as.numeric(rank)]
+  if(top_assignment_per_state){
+    dt_new[, rank := as.numeric(gsub(".*_", "", rank))]
+  }else{
+    dt_new[, rank := as.numeric(rank)]
+  }
 
   if(!("Chrom" %in% colnames(dt_new))){
     dt_new[, c("Chrom", "Pos") := tstrsplit(chr_pos, "_")]
@@ -685,6 +738,7 @@ compute_probabilities <- function(priors_per_tree,
   }
 
   if(only_one){
+    # added starting_state
     list_rate <- lapply(dt_new$branch,
                       get_rate,
                       priors_w_idx = branch_lengths,
@@ -692,11 +746,17 @@ compute_probabilities <- function(priors_per_tree,
     names(list_rate) <- dt_new$chr_pos
 
     rates_df <- do.call("rbind", list_rate)
+    # rates_df2 <- data.table::data.table("chr_pos" = rownames(rates_df),
+    #                                     "rank" = dt_new$rank,
+    #                                     rates_df)
     rates_df2 <- data.table::data.table("chr_pos" = rownames(rates_df),
                                         "rank" = dt_new$rank,
+                                        "starting_state" = dt_new$starting_state,
                                         rates_df)
-    data.table::setkey(dt_new, chr_pos, rank)
-    dt_new2 <- data.table::merge.data.table(dt_new, rates_df2, by = c("chr_pos", "rank"))
+    # data.table::setkey(dt_new, chr_pos, rank, starting_state)
+    data.table::setkey(dt_new, chr_pos, rank, starting_state)
+    # dt_new2 <- data.table::merge.data.table(dt_new, rates_df2, by = c("chr_pos", "rank"))
+    dt_new2 <- data.table::merge.data.table(dt_new, rates_df2, by = c("chr_pos", "rank", "starting_state"))
     dt_new <- dt_new2
   }
   dt_new[, n_assignments := sapply(only_branch, function(x){
