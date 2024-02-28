@@ -203,6 +203,30 @@ extract_branches <- function(dt_grouped, full){
   return(dt_grouped)
 }
 
+# function(nn){
+#   strsplit(nn, "_")[[1]]
+# }
+
+
+node_order_from_bottom <- function(full_tree, subtree_nodes, include_root = TRUE){
+  # from bottom to top
+  all_child_subtree_nodes <- as.numeric(grep("[0-9]", subtree_nodes, value = TRUE))
+  node_order <- bfs_node_order(full_tree)
+
+  indices_exp <- match(all_child_subtree_nodes, node_order$explored)
+  if(is.unsorted(indices_exp)){ # if unsorted, must reorder
+    all_child_subtree_nodes <- sort(all_child_subtree_nodes)
+    indices_exp <- match(all_child_subtree_nodes, node_order$explored)
+  }
+  from_bottom <- rev(all_child_subtree_nodes)
+  names(from_bottom) <- as.character(from_bottom)
+  if(include_root){
+    from_bottom <- c(from_bottom, "root" = full_tree$edge[1,1])
+  }
+  return(from_bottom)
+}
+
+
 #' Get proportion of reads in state S given read and depth matrices
 #'
 #' @param tips_mtx logical matrix of tip states
@@ -378,18 +402,62 @@ get_gamma_delta <- function(assignments,
                                             min_in_s = min_tips_in_s)
     }
   }else{
-    unmeth_mtx <- Reduce('+', matrix_list[c("MT_U", "PT_U", "U_U")])
-    meth_mtx <- Reduce('+', matrix_list[c("MT_M", "PT_M", "U_M")])
-    depth_mtx1 <- unmeth_mtx + meth_mtx
-    gamma_site <- get_proportion_of_reads(tips_mtx = prelim_s_mtx == 4,
-                                          reads_mtx = unmeth_mtx,
-                                          depth_mtx = depth_mtx1,
-                                          min_in_s = min_tips_in_s)
+    delta_t <- matrix_list$MT_M * (prelim_s_mtx == 1) +
+      matrix_list$PT_M * (prelim_s_mtx == 1) +
+      matrix_list$U_M * (prelim_s_mtx == 1) +
+      matrix_list$MT_M * (prelim_s_mtx == 2) +
+      matrix_list$PT_M * (prelim_s_mtx == 3)
 
-    delta_site <- get_proportion_of_reads(tips_mtx = prelim_s_mtx == 1,
-                                          reads_mtx = meth_mtx,
-                                          depth_mtx = depth_mtx1,
-                                          min_in_s = min_tips_in_s)
+    delta_b <- matrix_list$MT_M * (prelim_s_mtx == 1) +
+      matrix_list$MT_U * (prelim_s_mtx==1) +
+      matrix_list$PT_M * (prelim_s_mtx==1) +
+      matrix_list$PT_U * (prelim_s_mtx==1) +
+      matrix_list$U_M * (prelim_s_mtx==1) +
+      matrix_list$U_U * (prelim_s_mtx==1) +
+      matrix_list$MT_M * (prelim_s_mtx==2) +
+      matrix_list$MT_U * (prelim_s_mtx==2) +
+      matrix_list$PT_M * (prelim_s_mtx==3) +
+      matrix_list$PT_U * (prelim_s_mtx==3)
+
+    delta_t_mintip_drop <- apply(delta_t, 1, FUN = function(x) sum(x != 0) < min_tips_in_s)
+    delta_site <- rowSums(delta_t)/rowSums(delta_b)
+    delta_site[delta_t_mintip_drop] <- NA
+    delta_site[is.nan(delta_site)] <- NA
+
+    gamma_t <- matrix_list$MT_U * (prelim_s_mtx == 4) +
+      matrix_list$PT_U * (prelim_s_mtx == 4) +
+      matrix_list$U_U * (prelim_s_mtx == 4) +
+      matrix_list$PT_U * (prelim_s_mtx == 2) +
+      matrix_list$MT_U * (prelim_s_mtx == 3)
+
+    gamma_b <- matrix_list$MT_M * (prelim_s_mtx == 4) +
+      matrix_list$MT_U * (prelim_s_mtx==4) +
+      matrix_list$PT_M * (prelim_s_mtx==4) +
+      matrix_list$PT_U * (prelim_s_mtx==4) +
+      matrix_list$U_M * (prelim_s_mtx==4) +
+      matrix_list$U_U * (prelim_s_mtx==4) +
+      matrix_list$MT_M * (prelim_s_mtx==3) +
+      matrix_list$MT_U * (prelim_s_mtx==3) +
+      matrix_list$PT_M * (prelim_s_mtx==2) +
+      matrix_list$PT_U * (prelim_s_mtx==2)
+
+    gamma_t_mintip_drop <- apply(gamma_t, 1, FUN = function(x) sum(x != 0) < min_tips_in_s)
+    gamma_site <- rowSums(gamma_t)/rowSums(gamma_b)
+    gamma_site[gamma_t_mintip_drop] <- NA
+    gamma_site[is.nan(gamma_site)] <- NA
+
+    # unmeth_mtx <- Reduce('+', matrix_list[c("MT_U", "PT_U", "U_U")])
+    # meth_mtx <- Reduce('+', matrix_list[c("MT_M", "PT_M", "U_M")])
+    # depth_mtx1 <- unmeth_mtx + meth_mtx
+    # gamma_site <- get_proportion_of_reads(tips_mtx = prelim_s_mtx != 1,
+    #                                       reads_mtx = unmeth_mtx,
+    #                                       depth_mtx = depth_mtx1,
+    #                                       min_in_s = min_tips_in_s)
+    #
+    # delta_site <- get_proportion_of_reads(tips_mtx = prelim_s_mtx != 4,
+    #                                       reads_mtx = meth_mtx,
+    #                                       depth_mtx = depth_mtx1,
+    #                                       min_in_s = min_tips_in_s)
   }
   return(list("gamma" = gamma_site,
               "delta" = delta_site))
@@ -433,13 +501,40 @@ convert_sub_to_full_tree_branches <- function(assignments,
 
   renamed_branch_dts <- lapply(combined_by_chr_pos, extract_branches, full = full_tree)
 
+  if(FALSE){
+    # nodes_from_bot <- node_order_from_bottom(full_tree = full_tree, subtree_nodes = names(subtrees))
+    subtree_with_nested <- sapply(subtrees, function(asub){
+      any(!grepl("[[:alpha:]]", asub$tip.label))
+    })
+    subtrees_to_check <- names(subtrees)[subtree_with_nested]
+    subtrees_to_check[subtrees_to_check=="root"] <- full_tree$edge[1,1]
+    span_subtrees <- lapply(subtrees_to_check, function(x){
+      if(x == full_tree$edge[1,1]){
+        new_span_tree <- full_tree #list("root" = full_tree)
+      }else{
+        new_span <- divide_tree_into_subtrees(full_tree = full_tree, custom_nodes = as.integer(x))
+        new_span_tree <- new_span[names(new_span) == x][[1]]
+      }
+      return(new_span_tree)
+    })
+    names(span_subtrees) <- subtrees_to_check
+
+    # tree_node_order_and_subtrees <- list("from_bottom" = nodes_from_bot,
+    #                                      "full_span_subtrees" = 0)
+  }
+
+  renamed_branch_dts <- lapply(combined_by_chr_pos,
+                               #extract_branches2,
+                               extract_branches,
+                               full = full_tree)#,
+                               #recursive_subtrees = span_subtrees)
+
   if(any(is.null(renamed_branch_dts))){
     im_issue <- which(is.null(renamed_branch_dts))
     cat(sprintf("Failed to convert branches from sub tree to original tree for %s\n", paste0(names(combined_by_chr_pos)[im_issue], collapse = ", ")))
   }
 
   dt_combined2 <- data.table::rbindlist(renamed_branch_dts)
-
   dt_combined_unq <- dt_combined2[sub_tree_id == "root", c("chr_pos", "rank", "combined_branch", "ss_combined", "probability")]
   data.table::setnames(dt_combined_unq, c("ss_combined", "probability"), c("ss_root_tree", "probability_root"))
   branch_dt <- dt_combined_unq
@@ -456,13 +551,14 @@ convert_sub_to_full_tree_branches <- function(assignments,
   return(branch_dt)
 }
 
-convert_to_matrix <- function(matrix, chr_pos){
-  if(length(chr_pos) == 1){
-    r <- t(as.matrix(matrix[rownames(matrix) %in% chr_pos,]))
-    rownames(r) <- chr_pos
-  }else{
-    r <- matrix[rownames(matrix) %in% chr_pos,]
-  }
+convert_to_matrix <- function(some_matrix, chr_pos){
+  r <- some_matrix[rownames(some_matrix) %in% chr_pos,,drop=FALSE]
+  # if(length(chr_pos) == 1){
+  #   r <- t(as.matrix(matrix[rownames(matrix) %in% chr_pos,,drop=FALSE]))
+  #   rownames(r) <- chr_pos
+  # }else{
+  #   r <- matrix[rownames(matrix) %in% chr_pos,,drop=FALSE]
+  # }
   return(r)
 }
 
@@ -748,3 +844,7 @@ get4StateRates <- function(fwd, bck){
   diag(out) <- -rowSums(out)
   return(out)
 }
+
+
+
+
