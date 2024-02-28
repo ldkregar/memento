@@ -108,7 +108,7 @@ Let's find changes. First we compute the priors, which are the probabilities of 
 priors <- generate_priors(full_tree = tree, 
                           m = 2)
 # find changes
-assignments_full <- compute_probabilities(priors_per_tree = priors,
+assignments_full <- compute_probabilities3(priors_per_tree = priors,
                                      m_reads_matrix = meth_mtx,
                                      u_reads_matrix = unmeth_mtx, 
                                      n_top_br = 2,
@@ -193,7 +193,7 @@ priors_p_subtree <- generate_priors(all_trees = subtrees, full_tree = tree)
 
 # find changes on each subtree
 assignments <- lapply(priors_p_subtree,
-                      compute_probabilities, 
+                      compute_probabilities3, 
                       m_reads_matrix = meth_mtx,
                       u_reads_matrix = unmeth_mtx, 
                       ro = 0.95, 
