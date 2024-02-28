@@ -25,7 +25,8 @@ run_EM_on_subtrees(
   min_delta = 0.01,
   max_gamma = 0.4,
   max_delta = 0.4,
-  min_tips_in_state = 5
+  min_tips_in_state = 5,
+  site_specific = TRUE
 )
 }
 \arguments{
