@@ -22,7 +22,6 @@
 #' colony specific?
 #' @param use_ff_fully logical: whether to use ff fully or just for computing
 #' probabilities
-#' @param top_assignment_per_state logical: whether to report best assignment for each starting state
 #'
 #' @return data.table of probabilities and solutions
 #' @export
@@ -44,8 +43,7 @@ compute_probabilities <- function(priors_per_tree,
                                   hash_name = NA,
                                   current_comb = NA,
                                   site_specific = TRUE,
-                                  use_ff_fully = FALSE,
-                                  top_assignment_per_state = FALSE){
+                                  use_ff_fully = FALSE){
   chr_pos = branch = only_branch = starting_state = rank = n_assignments = Chrom = Pos = NULL
   if(length(priors_per_tree) == 1){
     only_one <- TRUE
@@ -70,15 +68,7 @@ compute_probabilities <- function(priors_per_tree,
   vector_col_names <- unlist(new_col_names)
   genotype_matrix <- do.call("cbind", genotype_vectors)
   colnames(genotype_matrix) <- vector_col_names
-  if(top_assignment_per_state){ # get which SS are the genotypes in
-    test_pattern <- "(?<=\\.).*(?=:)"
-    genotype_vec_ss <- regmatches(vector_col_names,
-                                  gregexpr(test_pattern,
-                                           vector_col_names,
-                                           perl=TRUE))
-    genotype_vec_ss <- as.numeric(genotype_vec_ss)
-    unq_ss <- sort(unique(genotype_vec_ss))
-  }
+
   if(verbose){
     cat(sprintf("Now working on tree with %i tips: %s\n",
                 length(one_tree$tip.label),
@@ -667,31 +657,31 @@ compute_probabilities <- function(priors_per_tree,
 
     how_many <- min(n_top_br, ncol(max_prob))
 
-    if(top_assignment_per_state){
-      # get top assignment per each SS
-      # genotype_vec_ss
-      max_prob_ss_values <- lapply(unq_ss, function(somess){
-        # apply(max_prob[, somess == genotype_vec_ss], 1, max)
-        apply(max_prob[, somess == genotype_vec_ss], 1, function(x){
-          sort(x, decreasing = TRUE)[1:how_many]
-        }, simplify = FALSE)
-      })
-      max_prob_ss_indices <- lapply(max_prob_ss_values, function(ss_list){
-        lapply(ss_list, function(x) names(x))
-      })
-
-      # max_prob_values and max_prob_indices must be list, where each item is of length n_top_br
-      # max_prob_values <- do.call("c", max_prob_ss_values)
-      # max_prob_values <- mapply(c, max_prob_ss_values, SIMPLIFY = FALSE)
-      max_prob_values <- lapply(c(1:length(max_prob_ss_values[[1]])), function(x){
-        return(unlist(lapply(max_prob_ss_values, function(y){y[[x]]})))
-      })
-
-      max_prob_indices <- lapply(c(1:length(max_prob_ss_indices[[1]])), function(x){
-        return(unlist(lapply(max_prob_ss_indices, function(y){y[[x]]})))
-      })
-
-    }else{
+    # if(top_assignment_per_state){
+    #   # get top assignment per each SS
+    #   # genotype_vec_ss
+    #   max_prob_ss_values <- lapply(unq_ss, function(somess){
+    #     # apply(max_prob[, somess == genotype_vec_ss], 1, max)
+    #     apply(max_prob[, somess == genotype_vec_ss], 1, function(x){
+    #       sort(x, decreasing = TRUE)[1:how_many]
+    #     }, simplify = FALSE)
+    #   })
+    #   max_prob_ss_indices <- lapply(max_prob_ss_values, function(ss_list){
+    #     lapply(ss_list, function(x) names(x))
+    #   })
+    #
+    #   # max_prob_values and max_prob_indices must be list, where each item is of length n_top_br
+    #   # max_prob_values <- do.call("c", max_prob_ss_values)
+    #   # max_prob_values <- mapply(c, max_prob_ss_values, SIMPLIFY = FALSE)
+    #   max_prob_values <- lapply(c(1:length(max_prob_ss_values[[1]])), function(x){
+    #     return(unlist(lapply(max_prob_ss_values, function(y){y[[x]]})))
+    #   })
+    #
+    #   max_prob_indices <- lapply(c(1:length(max_prob_ss_indices[[1]])), function(x){
+    #     return(unlist(lapply(max_prob_ss_indices, function(y){y[[x]]})))
+    #   })
+    #
+    # }else{
 
       comb_name <- colnames(max_prob)
 
@@ -704,25 +694,25 @@ compute_probabilities <- function(priors_per_tree,
       max_prob_indices <- lapply(max_prob_both, function(oneset){
         return(names(oneset))
       })
-    }
+    #}
 
   }
 
   dt_prob <- data.table::data.table(do.call("rbind", max_prob_values))
-  if(top_assignment_per_state){
-    colnames(dt_prob) <- paste0("ss", rep(unq_ss, each = n_top_br), ",rank_", as.character(c(1:n_top_br)))
-  }else{
+  # if(top_assignment_per_state){
+  #   colnames(dt_prob) <- paste0("ss", rep(unq_ss, each = n_top_br), ",rank_", as.character(c(1:n_top_br)))
+  # }else{
     colnames(dt_prob) <- as.character(c(1:n_top_br))
-  }
+  # }
 
   dt_prob[, chr_pos := all_sites]
 
   dt_solution <- data.table::data.table(do.call("rbind", max_prob_indices))
-  if(top_assignment_per_state){
-    colnames(dt_solution) <- paste0("ss", rep(unq_ss, each = n_top_br), ",rank_", as.character(c(1:n_top_br)))
-  }else{
+  #if(top_assignment_per_state){
+  #  colnames(dt_solution) <- paste0("ss", rep(unq_ss, each = n_top_br), ",rank_", as.character(c(1:n_top_br)))
+  #}else{
     colnames(dt_solution) <- as.character(c(1:n_top_br))
-  }
+  #}
 
   dt_solution[, chr_pos := all_sites]
 
@@ -737,11 +727,11 @@ compute_probabilities <- function(priors_per_tree,
   dt_sol_molten[, c("only_branch", "starting_state", "branch_state") := tstrsplit(branch, "\\.|:")]
   dt_sol_molten[, starting_state := as.numeric(starting_state)]
   dt_new <- data.table::merge.data.table(dt_prob_molten, dt_sol_molten, by = c("chr_pos", "rank"))
-  if(top_assignment_per_state){
-    dt_new[, rank := as.numeric(gsub(".*_", "", rank))]
-  }else{
+  # if(top_assignment_per_state){
+  #   dt_new[, rank := as.numeric(gsub(".*_", "", rank))]
+  # }else{
     dt_new[, rank := as.numeric(rank)]
-  }
+  # }
 
   if(!("Chrom" %in% colnames(dt_new))){
     dt_new[, c("Chrom", "Pos") := tstrsplit(chr_pos, "_")]
@@ -780,6 +770,630 @@ compute_probabilities <- function(priors_per_tree,
   })]
   return(dt_new)
 }
+
+
+#' Function to estimate likelihoods
+#'
+#' @param genotype_vectors list obtained from generate priors item genotype_vectors
+#' @param m_reads_matrix matrix of methylated reads: ensure column and row names
+#'  are present
+#' @param u_reads_matrix matrix of unmethylated reads: ensure column and row
+#' names are present
+#' @param matrix_list matrix of phased reads: ensure column and row names are
+#' present and that the matrix names are MT_M, MT_U, PT_M, PT_U, U_U and U_M
+#' @param ro numeric: error rate
+#' @param gamma numeric: error rate: proportion unmethylated reads when the true
+#'  state is methylated
+#' @param delta numeric: error rate: proportion methylated reads when the true
+#' state is unmethylated
+#' @param site_specific logical: if using gammas and deltas, are they site or
+#' colony specific
+#' @param node_is_real_tip logical vector of whether a tree tip is real tip or subtree parent
+#'
+#' @return data.table of probabilities and solutions
+#' @export
+#'
+#' @examples
+#' \dontrun{
+#'   test <- compute_probabilities3(priors_per_tree = result,
+#'   m_reads_matrix = m_mtx, u_reads_matrix = u_mtx, ro = 0.95)
+#' }
+estimate_likelihoods <- function(genotype_vectors,
+                                 m_reads_matrix=NULL,
+                                 u_reads_matrix = NULL,
+                                 matrix_list = NULL,
+                                 ro=NA,
+                                 gamma = NA,
+                                 delta = NA,
+                                 site_specific = TRUE,
+                                 node_is_real_tip = NULL){
+  use_sweep <- TRUE
+  # new gnt column names
+  current_col_names <- lapply(genotype_vectors, function(g){
+    return(colnames(g))
+  })
+  new_col_names <- vector("list", length(current_col_names))
+  for(t in 1:length(current_col_names)){
+    new_col_names[[t]] <- paste0(names(current_col_names)[t], ".", current_col_names[[t]])
+  }
+  vector_col_names <- unlist(new_col_names)
+  genotype_matrix <- do.call("cbind", genotype_vectors)
+  colnames(genotype_matrix) <- vector_col_names
+
+  if(!is.null(node_is_real_tip)){
+    genotype_matrix <- get_tip_only_genotypes(current_genotypes = genotype_matrix,
+                                              node_is_real_tip = node_is_real_tip)
+  }
+
+  # if(top_assignment_per_state){ # get which SS are the genotypes in
+  #   test_pattern <- "(?<=\\.).*(?=:)"
+  #   genotype_vec_ss <- regmatches(vector_col_names,
+  #                                 gregexpr(test_pattern,
+  #                                          vector_col_names,
+  #                                          perl=TRUE))
+  #   genotype_vec_ss <- as.numeric(genotype_vec_ss)
+  #   unq_ss <- sort(unique(genotype_vec_ss))
+  # }
+  # if(verbose){
+  #   cat(sprintf("Now working on tree with %i tips: %s\n",
+  #               length(one_tree$tip.label),
+  #               paste(one_tree$tip.label, collapse = ", ")))
+  # }
+
+  # prepare a matrix for each state, where tips is state S have 1 and 0 elsewhere
+  prep_gnt_tf <- lapply(c(1:the$number_of_states), function(si){
+    yy <- genotype_matrix == si
+    mode(yy) <- "numeric"
+    return(yy)
+  })
+  names(prep_gnt_tf) <- as.character(c(1:the$number_of_states))
+
+  if(the$number_of_states < 4){
+    nsites <- dim(m_reads_matrix)[1]
+    all_sites <- rownames(m_reads_matrix)
+    all_tips <- colnames(m_reads_matrix)
+    methcount <- m_reads_matrix
+    wtcount <- u_reads_matrix
+    mode(methcount) <- "numeric"
+    mode(wtcount) <- "numeric"
+  }else{
+    nsites <- nrow(matrix_list[[1]])
+    all_sites <- rownames(matrix_list[[1]])
+    all_tips <- colnames(matrix_list[[1]])
+    for(idx in 1:length(matrix_list)){
+      mode(matrix_list[[idx]]) <- "numeric"
+    }
+  }
+
+  n_genotypes <- length(vector_col_names)
+  # only_prior_values_1 <- unlist(branch_lengths, recursive = FALSE)
+  # only_prior_values_2 <- sapply(only_prior_values_1, "[[", 1)
+  #
+  # prior1=matrix(data = base::rep(x = only_prior_values_2, times = nsites),
+  #               nrow=nsites,
+  #               ncol=length(only_prior_values_2),
+  #               byrow = TRUE)
+
+  if(length(gamma) == 1 & length(delta) == 1 &
+     all(is.na(gamma)) & all(is.na(delta))){
+    a=log(ro)
+    b=log(1-ro)
+    c=log(0.5)
+    d=log(0.5)
+    e=log(1-ro)
+    f=log(ro)
+
+    if(the$number_of_states < 4){
+      tmp1 <- a*methcount
+      tmp2 <- b*wtcount
+      if(the$number_of_states == 3){
+        tmp3 <- c*methcount
+        tmp4 <- d*wtcount
+      }
+      tmp5 <- e*methcount
+      tmp6 <- f*wtcount
+
+    }else if(the$number_of_states == 4){
+      tmp1 <- eigenMapMatMult2(matrix_list[["MT_M"]], prep_gnt_tf[["4"]]) +
+        eigenMapMatMult2(matrix_list[["PT_M"]], prep_gnt_tf[["4"]]) +
+        eigenMapMatMult2(matrix_list[["U_M"]], prep_gnt_tf[["4"]]) +
+        eigenMapMatMult2(matrix_list[["PT_M"]], prep_gnt_tf[["2"]]) +
+        eigenMapMatMult2(matrix_list[["MT_M"]], prep_gnt_tf[["3"]])
+
+      tmp2 <- eigenMapMatMult2(matrix_list[["MT_U"]], prep_gnt_tf[["4"]]) +
+        eigenMapMatMult2(matrix_list[["PT_U"]], prep_gnt_tf[["4"]]) +
+        eigenMapMatMult2(matrix_list[["U_U"]], prep_gnt_tf[["4"]]) +
+        eigenMapMatMult2(matrix_list[["PT_U"]], prep_gnt_tf[["2"]]) +
+        eigenMapMatMult2(matrix_list[["MT_U"]], prep_gnt_tf[["3"]])
+
+      tmp3 <- eigenMapMatMult2(matrix_list[["U_M"]], prep_gnt_tf[["2"]]) +
+        eigenMapMatMult2(matrix_list[["U_M"]], prep_gnt_tf[["3"]])
+
+      tmp4 <- eigenMapMatMult2(matrix_list[["U_U"]], prep_gnt_tf[["2"]]) +
+        eigenMapMatMult2(matrix_list[["U_U"]], prep_gnt_tf[["3"]])
+
+      tmp5 <- eigenMapMatMult2(matrix_list[["MT_M"]], prep_gnt_tf[["2"]]) +
+        eigenMapMatMult2(matrix_list[["PT_M"]], prep_gnt_tf[["3"]]) +
+        eigenMapMatMult2(matrix_list[["PT_M"]], prep_gnt_tf[["1"]]) +
+        eigenMapMatMult2(matrix_list[["MT_M"]], prep_gnt_tf[["1"]]) +
+        eigenMapMatMult2(matrix_list[["U_M"]], prep_gnt_tf[["1"]])
+
+      tmp6 <- eigenMapMatMult2(matrix_list[["MT_U"]], prep_gnt_tf[["2"]]) +
+        eigenMapMatMult2(matrix_list[["PT_U"]], prep_gnt_tf[["3"]]) +
+        eigenMapMatMult2(matrix_list[["MT_U"]], prep_gnt_tf[["1"]]) +
+        eigenMapMatMult2(matrix_list[["PT_U"]], prep_gnt_tf[["1"]]) +
+        eigenMapMatMult2(matrix_list[["U_U"]], prep_gnt_tf[["1"]])
+
+      p_new <- tmp1*a + tmp2*b + tmp3*c + tmp4*d + tmp5*e + tmp6*f
+    } # end of n_states == 4
+  }else{
+    if(length(gamma) == 1 & length(delta) == 1 & nsites != 1){
+      gamma <- rep(gamma, nsites)
+      delta <- rep(delta, nsites)
+    }
+    a=log(1-gamma)
+    b=log(gamma)
+    c=log((1+delta-gamma)/2)
+    d=log((1+gamma-delta)/2)
+    e=log(delta)
+    f=log(1-delta)
+
+    gd_error_rates <- list(a, b, c, d, e, f)
+
+    all_but_one <- gd_error_rates[2:length(gd_error_rates)]
+    names_first <- names(gd_error_rates[[1]])
+    if(is.null(names_first)){
+      warning("It is strongly advised to use named vectors for gamma and delta")
+    }
+    vec_names_id <- sapply(lapply(all_but_one, function(x) names(x)),
+                           FUN = identical,
+                           names_first)
+
+    if(!all(vec_names_id)){
+      if(site_specific){ # check if all_sites match names of a, b, c, d, e, f
+        a <- a[match(all_sites, names(a))]
+        b <- b[match(all_sites, names(b))]
+        c <- c[match(all_sites, names(c))]
+        d <- d[match(all_sites, names(d))]
+        e <- e[match(all_sites, names(e))]
+        f <- f[match(all_sites, names(f))]
+      }else{ # check colnames match
+        a <- a[match(all_tips, names(a))]
+        b <- b[match(all_tips, names(b))]
+        c <- c[match(all_tips, names(c))]
+        d <- d[match(all_tips, names(d))]
+        e <- e[match(all_tips, names(e))]
+        f <- f[match(all_tips, names(f))]
+      }
+    }
+
+    if(the$number_of_states < 4){
+      if(site_specific){
+        methcount <- t(methcount)
+        wtcount <- t(wtcount)
+      }
+
+      # tmp1 <- Rfast::eachrow(methcount, a, "*")
+      tmp1 <- sweep(methcount, MARGIN = 1, a, "*")
+      # tmp2 <- Rfast::eachrow(wtcount, b, "*")
+      tmp2 <- sweep(wtcount, 1, b, "*")
+      # tmp3 <- Rfast::eachrow(methcount, c, "*")
+      tmp3 <- sweep(methcount, 1, c, "*")
+      # tmp4 <- Rfast::eachrow(wtcount, d, "*")
+      tmp4 <- sweep(wtcount, 1, d, "*")
+      # tmp5 <- Rfast::eachrow(methcount, e, "*")
+      tmp5 <- sweep(methcount, 1, e, "*")
+      # tmp6 <- Rfast::eachrow(wtcount, f, "*")
+      tmp6 <- sweep(wtcount, 1, f, "*")
+
+      if(site_specific){
+        tmp1 <- t(tmp1)
+        tmp2 <- t(tmp2)
+        tmp3 <- t(tmp3)
+        tmp4 <- t(tmp4)
+        tmp5 <- t(tmp5)
+        tmp6 <- t(tmp6)
+      }
+
+    }else{ # the$number_of_states > 4
+      if(site_specific){
+        if(use_sweep){
+          tmp1 <- eigenMapMatMult2(sweep(matrix_list[["MT_M"]], MARGIN = 1, a, "*"), prep_gnt_tf[["4"]]) +
+            eigenMapMatMult2(sweep(matrix_list[["PT_M"]], MARGIN = 1, a, "*"), prep_gnt_tf[["4"]]) +
+            eigenMapMatMult2(sweep(matrix_list[["U_M"]], MARGIN = 1, a, "*"), prep_gnt_tf[["4"]]) +
+            eigenMapMatMult2(sweep(matrix_list[["PT_M"]], MARGIN = 1, a, "*"), prep_gnt_tf[["2"]]) +
+            eigenMapMatMult2(sweep(matrix_list[["MT_M"]], MARGIN = 1, a, "*"), prep_gnt_tf[["3"]])
+
+          tmp2 <- eigenMapMatMult2(sweep(matrix_list[["MT_U"]], MARGIN = 1, b, "*"), prep_gnt_tf[["4"]]) +
+            eigenMapMatMult2(sweep(matrix_list[["PT_U"]], MARGIN = 1, b, "*"), prep_gnt_tf[["4"]]) +
+            eigenMapMatMult2(sweep(matrix_list[["U_U"]], MARGIN = 1, b, "*"), prep_gnt_tf[["4"]]) +
+            eigenMapMatMult2(sweep(matrix_list[["PT_U"]], MARGIN = 1, b, "*"), prep_gnt_tf[["2"]]) +
+            eigenMapMatMult2(sweep(matrix_list[["MT_U"]], MARGIN = 1, b, "*"), prep_gnt_tf[["3"]])
+
+          tmp3 <- eigenMapMatMult2(sweep(matrix_list[["U_M"]], MARGIN = 1, c, "*"), prep_gnt_tf[["2"]]) +
+            eigenMapMatMult2(sweep(matrix_list[["U_M"]], MARGIN = 1, c, "*"), prep_gnt_tf[["3"]])
+
+          tmp4 <- eigenMapMatMult2(sweep(matrix_list[["U_U"]], MARGIN = 1, d, "*"), prep_gnt_tf[["2"]]) +
+            eigenMapMatMult2(sweep(matrix_list[["U_U"]], MARGIN = 1, d, "*"), prep_gnt_tf[["3"]])
+
+          tmp5 <- eigenMapMatMult2(sweep(matrix_list[["MT_M"]], MARGIN = 1, e, "*"), prep_gnt_tf[["2"]]) +
+            eigenMapMatMult2(sweep(matrix_list[["PT_M"]], MARGIN = 1, e, "*"), prep_gnt_tf[["3"]]) +
+            eigenMapMatMult2(sweep(matrix_list[["PT_M"]], MARGIN = 1, e, "*"), prep_gnt_tf[["1"]]) +
+            eigenMapMatMult2(sweep(matrix_list[["MT_M"]], MARGIN = 1, e, "*"), prep_gnt_tf[["1"]]) +
+            eigenMapMatMult2(sweep(matrix_list[["U_M"]], MARGIN = 1, e, "*"), prep_gnt_tf[["1"]])
+
+          tmp6 <- eigenMapMatMult2(sweep(matrix_list[["MT_U"]], MARGIN = 1, f, "*"), prep_gnt_tf[["2"]]) +
+            eigenMapMatMult2(sweep(matrix_list[["PT_U"]], MARGIN = 1, f, "*"), prep_gnt_tf[["3"]]) +
+            eigenMapMatMult2(sweep(matrix_list[["MT_U"]], MARGIN = 1, f, "*"), prep_gnt_tf[["1"]]) +
+            eigenMapMatMult2(sweep(matrix_list[["PT_U"]], MARGIN = 1, f, "*"), prep_gnt_tf[["1"]]) +
+            eigenMapMatMult2(sweep(matrix_list[["U_U"]], MARGIN = 1, f, "*"), prep_gnt_tf[["1"]])
+        }else{
+          tmp1 <- eigenMapMatMult2(Rfast::eachrow(matrix_list[["MT_M"]], a, "*"), prep_gnt_tf[["4"]]) +
+            eigenMapMatMult2(Rfast::eachrow(matrix_list[["PT_M"]], a, "*"), prep_gnt_tf[["4"]]) +
+            eigenMapMatMult2(Rfast::eachrow(matrix_list[["U_M"]], a, "*"), prep_gnt_tf[["4"]]) +
+            eigenMapMatMult2(Rfast::eachrow(matrix_list[["PT_M"]], a, "*"), prep_gnt_tf[["2"]]) +
+            eigenMapMatMult2(Rfast::eachrow(matrix_list[["MT_M"]], a, "*"), prep_gnt_tf[["3"]])
+
+        tmp2 <- eigenMapMatMult2(Rfast::eachrow(matrix_list[["MT_U"]], b, "*"), prep_gnt_tf[["4"]]) +
+          eigenMapMatMult2(Rfast::eachrow(matrix_list[["PT_U"]], b, "*"), prep_gnt_tf[["4"]]) +
+          eigenMapMatMult2(Rfast::eachrow(matrix_list[["U_U"]], b, "*"), prep_gnt_tf[["4"]]) +
+          eigenMapMatMult2(Rfast::eachrow(matrix_list[["PT_U"]], b, "*"), prep_gnt_tf[["2"]]) +
+          eigenMapMatMult2(Rfast::eachrow(matrix_list[["MT_U"]], b, "*"), prep_gnt_tf[["3"]])
+
+        tmp3 <- eigenMapMatMult2(Rfast::eachrow(matrix_list[["U_M"]], c, "*"), prep_gnt_tf[["2"]]) +
+          eigenMapMatMult2(Rfast::eachrow(matrix_list[["U_M"]], c, "*"), prep_gnt_tf[["3"]])
+
+        tmp4 <- eigenMapMatMult2(Rfast::eachrow(matrix_list[["U_U"]], d, "*"), prep_gnt_tf[["2"]]) +
+          eigenMapMatMult2(Rfast::eachrow(matrix_list[["U_U"]], d, "*"), prep_gnt_tf[["3"]])
+
+        tmp5 <- eigenMapMatMult2(Rfast::eachrow(matrix_list[["MT_M"]], e, "*"), prep_gnt_tf[["2"]]) +
+          eigenMapMatMult2(Rfast::eachrow(matrix_list[["PT_M"]], e, "*"), prep_gnt_tf[["3"]]) +
+          eigenMapMatMult2(Rfast::eachrow(matrix_list[["PT_M"]], e, "*"), prep_gnt_tf[["1"]]) +
+          eigenMapMatMult2(Rfast::eachrow(matrix_list[["MT_M"]], e, "*"), prep_gnt_tf[["1"]]) +
+          eigenMapMatMult2(Rfast::eachrow(matrix_list[["U_M"]], e, "*"), prep_gnt_tf[["1"]])
+
+        tmp6 <- eigenMapMatMult2(Rfast::eachrow(matrix_list[["MT_U"]], f, "*"), prep_gnt_tf[["2"]]) +
+          eigenMapMatMult2(Rfast::eachrow(matrix_list[["PT_U"]], f, "*"), prep_gnt_tf[["3"]]) +
+          eigenMapMatMult2(Rfast::eachrow(matrix_list[["MT_U"]], f, "*"), prep_gnt_tf[["1"]]) +
+          eigenMapMatMult2(Rfast::eachrow(matrix_list[["PT_U"]], f, "*"), prep_gnt_tf[["1"]]) +
+          eigenMapMatMult2(Rfast::eachrow(matrix_list[["U_U"]], f, "*"), prep_gnt_tf[["1"]])
+        }
+      }else{
+        # TODO: replace sweep with Rfast - but Rfast has a bug 20240204
+        # tmp1 <- eigenMapMatMult2(t(Rfast::eachrow(t(matrix_list[["MT_M"]]), a, "*")), prep_gnt_tf[["4"]]) +
+        #   eigenMapMatMult2(t(Rfast::eachrow(t(matrix_list[["PT_M"]]), a, "*")), prep_gnt_tf[["4"]]) +
+        #   eigenMapMatMult2(t(Rfast::eachrow(t(matrix_list[["U_M"]]), a, "*")), prep_gnt_tf[["4"]]) +
+        #   eigenMapMatMult2(t(Rfast::eachrow(t(matrix_list[["PT_M"]]), a, "*")), prep_gnt_tf[["2"]]) +
+        #   eigenMapMatMult2(t(Rfast::eachrow(t(matrix_list[["MT_M"]]), a, "*")), prep_gnt_tf[["3"]])
+        #
+        # tmp2 <- eigenMapMatMult2(t(Rfast::eachrow(t(matrix_list[["MT_U"]]), b, "*")), prep_gnt_tf[["4"]]) +
+        #   eigenMapMatMult2(t(Rfast::eachrow(t(matrix_list[["PT_U"]]), b, "*")), prep_gnt_tf[["4"]]) +
+        #   eigenMapMatMult2(t(Rfast::eachrow(t(matrix_list[["U_U"]]), b, "*")), prep_gnt_tf[["4"]]) +
+        #   eigenMapMatMult2(t(Rfast::eachrow(t(matrix_list[["PT_U"]]), b, "*")), prep_gnt_tf[["2"]]) +
+        #   eigenMapMatMult2(t(Rfast::eachrow(t(matrix_list[["MT_U"]]), b, "*")), prep_gnt_tf[["3"]])
+        #
+        # tmp3 <- eigenMapMatMult2(t(Rfast::eachrow(t(matrix_list[["U_M"]]), c, "*")), prep_gnt_tf[["2"]]) +
+        #   eigenMapMatMult2(t(Rfast::eachrow(t(matrix_list[["U_M"]]), c, "*")), prep_gnt_tf[["3"]])
+        #
+        # tmp4 <- eigenMapMatMult2(t(Rfast::eachrow(t(matrix_list[["U_U"]]), d, "*")), prep_gnt_tf[["2"]]) +
+        #   eigenMapMatMult2(t(Rfast::eachrow(t(matrix_list[["U_U"]]), d, "*")), prep_gnt_tf[["3"]])
+        #
+        # tmp5 <- eigenMapMatMult2(t(Rfast::eachrow(t(matrix_list[["MT_M"]]), e, "*")), prep_gnt_tf[["2"]]) +
+        #   eigenMapMatMult2(t(Rfast::eachrow(t(matrix_list[["PT_M"]]), e, "*")), prep_gnt_tf[["3"]]) +
+        #   eigenMapMatMult2(t(Rfast::eachrow(t(matrix_list[["PT_M"]]), e, "*")), prep_gnt_tf[["1"]]) +
+        #   eigenMapMatMult2(t(Rfast::eachrow(t(matrix_list[["MT_M"]]), e, "*")), prep_gnt_tf[["1"]]) +
+        #   eigenMapMatMult2(t(Rfast::eachrow(t(matrix_list[["U_M"]]), e, "*")), prep_gnt_tf[["1"]])
+        #
+        # tmp6 <- eigenMapMatMult2(t(Rfast::eachrow(t(matrix_list[["MT_U"]]), f, "*")), prep_gnt_tf[["2"]]) +
+        #   eigenMapMatMult2(t(Rfast::eachrow(t(matrix_list[["PT_U"]]), f, "*")), prep_gnt_tf[["3"]]) +
+        #   eigenMapMatMult2(t(Rfast::eachrow(t(matrix_list[["MT_U"]]), f, "*")), prep_gnt_tf[["1"]]) +
+        #   eigenMapMatMult2(t(Rfast::eachrow(t(matrix_list[["PT_U"]]), f, "*")), prep_gnt_tf[["1"]]) +
+        #   eigenMapMatMult2(t(Rfast::eachrow(t(matrix_list[["U_U"]]), f, "*")), prep_gnt_tf[["1"]])
+
+        tmp1 <- eigenMapMatMult2(sweep(matrix_list[["MT_M"]], MARGIN = 2, a, "*"), prep_gnt_tf[["4"]]) +
+          eigenMapMatMult2(sweep(matrix_list[["PT_M"]], MARGIN = 2, a, "*"), prep_gnt_tf[["4"]]) +
+          eigenMapMatMult2(sweep(matrix_list[["U_M"]], MARGIN = 2, a, "*"), prep_gnt_tf[["4"]]) +
+          eigenMapMatMult2(sweep(matrix_list[["PT_M"]], MARGIN = 2, a, "*"), prep_gnt_tf[["2"]]) +
+          eigenMapMatMult2(sweep(matrix_list[["MT_M"]], MARGIN = 2, a, "*"), prep_gnt_tf[["3"]])
+
+        tmp2 <- eigenMapMatMult2(sweep(matrix_list[["MT_U"]], MARGIN = 2, b, "*"), prep_gnt_tf[["4"]]) +
+          eigenMapMatMult2(sweep(matrix_list[["PT_U"]], MARGIN = 2, b, "*"), prep_gnt_tf[["4"]]) +
+          eigenMapMatMult2(sweep(matrix_list[["U_U"]], MARGIN = 2, b, "*"), prep_gnt_tf[["4"]]) +
+          eigenMapMatMult2(sweep(matrix_list[["PT_U"]], MARGIN = 2, b, "*"), prep_gnt_tf[["2"]]) +
+          eigenMapMatMult2(sweep(matrix_list[["MT_U"]], MARGIN = 2, b, "*"), prep_gnt_tf[["3"]])
+
+        tmp3 <- eigenMapMatMult2(sweep(matrix_list[["U_M"]], MARGIN = 2, c, "*"), prep_gnt_tf[["2"]]) +
+          eigenMapMatMult2(sweep(matrix_list[["U_M"]], MARGIN = 2, c, "*"), prep_gnt_tf[["3"]])
+
+        tmp4 <- eigenMapMatMult2(sweep(matrix_list[["U_U"]], MARGIN = 2, d, "*"), prep_gnt_tf[["2"]]) +
+          eigenMapMatMult2(sweep(matrix_list[["U_U"]], MARGIN = 2, d, "*"), prep_gnt_tf[["3"]])
+
+        tmp5 <- eigenMapMatMult2(sweep(matrix_list[["MT_M"]], MARGIN = 2, e, "*"), prep_gnt_tf[["2"]]) +
+          eigenMapMatMult2(sweep(matrix_list[["PT_M"]], MARGIN = 2, e, "*"), prep_gnt_tf[["3"]]) +
+          eigenMapMatMult2(sweep(matrix_list[["PT_M"]], MARGIN = 2, e, "*"), prep_gnt_tf[["1"]]) +
+          eigenMapMatMult2(sweep(matrix_list[["MT_M"]], MARGIN = 2, e, "*"), prep_gnt_tf[["1"]]) +
+          eigenMapMatMult2(sweep(matrix_list[["U_M"]], MARGIN = 2, e, "*"), prep_gnt_tf[["1"]])
+
+        tmp6 <- eigenMapMatMult2(sweep(matrix_list[["MT_U"]], MARGIN = 2, f, "*"), prep_gnt_tf[["2"]]) +
+          eigenMapMatMult2(sweep(matrix_list[["PT_U"]], MARGIN = 2, f, "*"), prep_gnt_tf[["3"]]) +
+          eigenMapMatMult2(sweep(matrix_list[["MT_U"]], MARGIN = 2, f, "*"), prep_gnt_tf[["1"]]) +
+          eigenMapMatMult2(sweep(matrix_list[["PT_U"]], MARGIN = 2, f, "*"), prep_gnt_tf[["1"]]) +
+          eigenMapMatMult2(sweep(matrix_list[["U_U"]], MARGIN = 2, f, "*"), prep_gnt_tf[["1"]])
+
+      } # end of site_specific == FALSE
+
+      p_new <- tmp1 + tmp2 + tmp3 + tmp4 + tmp5 + tmp6
+
+    } # end of n_states == 4
+
+  } # end of length(a) > 1 & len(e) > 1
+
+  if(the$number_of_states == 2){
+    p_new = eigenMapMatMult2(tmp1 + tmp2, prep_gnt_tf[["2"]]) +
+      eigenMapMatMult2(tmp5 + tmp6, prep_gnt_tf[["1"]])
+  }else if(the$number_of_states == 3){
+    if(the$use_ff){
+      p_new=methods::as((tmp1 + tmp2), "HDF5Matrix") %*% methods::as(prep_gnt_tf[["3"]], "HDF5Matrix") +
+        methods::as((tmp3 + tmp4), "HDF5Matrix") %*% methods::as(prep_gnt_tf[["2"]], "HDF5Matrix") +
+        methods::as((tmp5 + tmp6), "HDF5Matrix") %*% methods::as(prep_gnt_tf[["1"]], "HDF5Matrix")
+    }else if(the$use_Rfast){
+      p_new=Rfast::mat.mult((tmp1 + tmp2), prep_gnt_tf[["3"]]) +
+        Rfast::mat.mult((tmp3 + tmp4), prep_gnt_tf[["2"]]) +
+        Rfast::mat.mult((tmp5 + tmp6), prep_gnt_tf[["1"]])
+    }else{
+      p_new=eigenMapMatMult2((tmp1 + tmp2), prep_gnt_tf[["3"]]) +
+        eigenMapMatMult2((tmp3 + tmp4), prep_gnt_tf[["2"]]) +
+        eigenMapMatMult2((tmp5 + tmp6), prep_gnt_tf[["1"]])
+    }
+  }
+
+  # done computing likelihoods
+  if(is.null(colnames(p_new))){
+    colnames(p_new) <- vector_col_names
+  }
+
+  if(is.null(rownames(p_new))){
+    rownames(p_new) <- all_sites
+  }
+
+  return(p_new)
+}
+
+
+#' Updated compute probabilities
+#'
+#' @param priors_per_tree list obtained from generate priors
+#' @param m_reads_matrix matrix of methylated reads: ensure column and row names
+#'  are present
+#' @param u_reads_matrix matrix of unmethylated reads: ensure column and row
+#' names are present
+#' @param matrix_list matrix of phased reads: ensure column and row names are
+#' present and that the matrix names are MT_M, MT_U, PT_M, PT_U, U_U and U_M
+#' @param ro numeric: error rate
+#' @param gamma numeric: error rate: proportion unmethylated reads when the true
+#'  state is methylated
+#' @param delta numeric: error rate: proportion methylated reads when the true
+#' state is unmethylated
+#' @param verbose logical: whether to print messages
+#' @param n_top_br integer: number of top branches to return
+#' @param hash_name character: name of current combination (only for mle step)
+#' @param current_comb only for mle step
+#' @param site_specific logical: if using gammas and deltas, are they site or
+#' colony specific
+#' @param use_ff_fully logical: whether to use ff fully or just for computing
+#' probabilities
+#' @param true_tip_vector optional: logical vector of whether tip is real tip or not
+#' @param only_return_likelihoods logical: should raw log likelihood values be returned
+#' @param add_priors_to_likelihoods logical: should priors be added to the log likelihoods
+#'
+#' @return data.table of probabilities and solutions
+#' @export
+#'
+#' @examples
+#' \dontrun{
+#'   test <- compute_probabilities3(priors_per_tree = result,
+#'   m_reads_matrix = m_mtx, u_reads_matrix = u_mtx, ro = 0.95)
+#' }
+compute_probabilities3 <- function(priors_per_tree,
+                                   m_reads_matrix=NULL,
+                                   u_reads_matrix = NULL,
+                                   matrix_list = NULL,
+                                   ro=NA,
+                                   gamma = NA,
+                                   delta = NA,
+                                   verbose = TRUE,
+                                   n_top_br = 2,
+                                   hash_name = NA,
+                                   current_comb = NA,
+                                   site_specific = TRUE,
+                                   use_ff_fully = FALSE,
+                                   true_tip_vector = NULL,
+                                   only_return_likelihoods = FALSE,
+                                   add_priors_to_likelihoods = FALSE){
+  if(all(is.na(c(gamma, delta, ro)))){
+    stop("Must provide ro value (symmetric error rate for both states) or gamma and delta values (gamma = prob. of calling unmethylated when true state is methylated; delta = prob. of calling methylated when true state is unmethylated)")
+  }
+
+  chr_pos = branch = only_branch = starting_state = rank = n_assignments = Chrom = Pos = NULL
+
+  if(length(priors_per_tree) == 1){
+    only_one <- TRUE
+    priors_per_tree <- priors_per_tree[[1]]
+  }else{
+    only_one <- FALSE
+  }
+
+  genotype_vectors <- priors_per_tree$genotype_vectors
+
+  p_new <- estimate_likelihoods(genotype_vectors,
+                                m_reads_matrix = m_reads_matrix,
+                                u_reads_matrix = u_reads_matrix,
+                                matrix_list = matrix_list,
+                                ro=ro,
+                                gamma = gamma,
+                                delta = delta,
+                                site_specific = site_specific,
+                                node_is_real_tip = true_tip_vector)
+  if(only_return_likelihoods & add_priors_to_likelihoods == FALSE){
+    return(p_new)
+  }
+  branch_lengths <- priors_per_tree$priors
+  one_tree <- priors_per_tree$tree_for_priors
+
+  branches <- priors_per_tree$branches
+  n_permuted_b <- unique(lengths(priors_per_tree$affected_branches))
+
+  if(the$number_of_states < 4){
+    nsites <- nrow(m_reads_matrix)
+    all_sites <- rownames(m_reads_matrix)
+  }else{
+    nsites <- nrow(matrix_list[[1]])
+    all_sites <- rownames(matrix_list[[1]])
+  }
+
+  only_prior_values_1 <- unlist(branch_lengths, recursive = FALSE)
+  only_prior_values_2 <- sapply(only_prior_values_1, "[[", 1)
+
+  prior1=matrix(data = base::rep(x = only_prior_values_2, times = nsites),
+                nrow=nsites,
+                ncol=length(only_prior_values_2),
+                byrow = TRUE)
+
+  if(the$use_ff){
+    raw_val <- p_new + methods::as(prior1, "HDF5Matrix")
+  }else{
+    raw_val <- p_new + prior1
+  }
+  if(only_return_likelihoods & add_priors_to_likelihoods){
+    return(raw_val)
+  }
+
+  if(!is.na(hash_name)){
+    the$global_hash_list[[hash_name]][["raw_vals"]][[as.character(current_comb)]] <- list(raw_val)
+  }
+
+  if(use_ff_fully & the$use_ff){
+    raw_rowsum <- DelayedArray::rowSums(raw_val)
+
+    max_raw <- apply(raw_val, 1, max)
+
+    max_subtracted <- sweep(as(raw_val, "Matrix"), 1, max_raw)
+
+    max_prob <- exp(max_subtracted) / apply(exp(max_subtracted), 1, sum)
+
+    how_many <- min(n_top_br, ncol(max_prob))
+    comb_name <- colnames(max_prob)
+
+    max_prob_both <- DelayedArray::blockApply(x = max_prob,
+                                              FUN = function(row1){
+                                                y <- order(row1, decreasing = TRUE)[1:how_many]
+                                                indi <- comb_name[y]
+                                                valu <- row1[y]
+                                                return(list("vals" = valu,
+                                                            "inds" = indi))
+                                              },
+                                              grid = S4Arrays::RegularArrayGrid(refdim = dim(max_prob),
+                                                                                spacings = c(1L, ncol(max_prob))))
+    max_prob_values <- lapply(max_prob_both, "[[", 1)
+    max_prob_indices <- lapply(max_prob_both, "[[", 2)
+  }else{
+    if(the$use_ff){
+      raw_val <- as.matrix(raw_val)
+    }
+    raw_rowsum <- rowSums(raw_val)
+
+    max_raw <- apply(raw_val, 1, max)
+
+    max_subtracted <- sweep(raw_val, 1, max_raw)
+    max_prob <- exp(max_subtracted) / apply(exp(max_subtracted), 1, sum)
+
+    how_many <- min(n_top_br, ncol(max_prob))
+
+    comb_name <- colnames(max_prob)
+
+    max_prob_both <- apply(max_prob, 1, function(x){
+      sort(x, decreasing = TRUE)[1:how_many]
+    }, simplify = FALSE)
+
+    max_prob_values <- max_prob_both
+
+    max_prob_indices <- lapply(max_prob_both, function(oneset){
+      return(names(oneset))
+    })
+
+  }
+
+  dt_prob <- data.table::data.table(do.call("rbind", max_prob_values))
+  # if(top_assignment_per_state){
+  #   colnames(dt_prob) <- paste0("ss", rep(unq_ss, each = n_top_br), ",rank_", as.character(c(1:n_top_br)))
+  # }else{
+    colnames(dt_prob) <- as.character(c(1:n_top_br))
+  # }
+
+  dt_prob[, chr_pos := all_sites]
+
+  dt_solution <- data.table::data.table(do.call("rbind", max_prob_indices))
+  # if(top_assignment_per_state){
+  #   colnames(dt_solution) <- paste0("ss", rep(unq_ss, each = n_top_br), ",rank_", as.character(c(1:n_top_br)))
+  # }else{
+    colnames(dt_solution) <- as.character(c(1:n_top_br))
+  # }
+
+  dt_solution[, chr_pos := all_sites]
+
+  dt_prob_molten <- data.table::melt(dt_prob, id.vars = c("chr_pos"),
+                                     value.name = "probability",
+                                     variable.name = "rank")
+
+  dt_sol_molten <- data.table::melt(dt_solution, id.vars = c("chr_pos"),
+                                    value.name = "branch",
+                                    variable.name = "rank")
+
+  dt_sol_molten[, c("only_branch", "starting_state", "branch_state") := tstrsplit(branch, "\\.|:")]
+  dt_sol_molten[, starting_state := as.numeric(starting_state)]
+  dt_new <- data.table::merge.data.table(dt_prob_molten, dt_sol_molten, by = c("chr_pos", "rank"))
+  # if(top_assignment_per_state){
+  #   dt_new[, rank := as.numeric(gsub(".*_", "", rank))]
+  # }else{
+    dt_new[, rank := as.numeric(rank)]
+  # }
+
+  if(!("Chrom" %in% colnames(dt_new))){
+    dt_new[, c("Chrom", "Pos") := tstrsplit(chr_pos, "_")]
+    dt_new[, Pos := as.numeric(Pos)]
+  }
+
+  if(only_one){
+    # added starting_state
+    list_rate <- lapply(dt_new$branch,
+                        get_rate,
+                        priors_w_idx = branch_lengths,
+                        full_tree = one_tree)
+    names(list_rate) <- dt_new$chr_pos
+
+    rates_df <- do.call("rbind", list_rate)
+
+    rates_df2 <- data.table::data.table("chr_pos" = rownames(rates_df),
+                                        "rank" = dt_new$rank,
+                                        "starting_state" = dt_new$starting_state,
+                                        rates_df)
+
+    data.table::setkey(dt_new, chr_pos, rank, starting_state)
+    dt_new2 <- data.table::merge.data.table(dt_new, rates_df2, by = c("chr_pos", "rank", "starting_state"))
+    dt_new <- dt_new2
+  }
+  dt_new[, n_assignments := sapply(only_branch, function(x){
+    y <- strsplit(x, "_")[[1]]
+    if(all(y == "n")){
+      return(0)
+    }else{
+      return(length(y))
+    }
+  })]
+  return(dt_new)
+
+}
+
 
 #' Get MLE solution for branches at reads
 #'
@@ -1258,8 +1872,8 @@ find_most_likely_set <- function(dt_pre,
 
   assignment_reads <- lapply(assignment_sites, function(site){
     if(the$number_of_states < 4){
-      sites_mreads_vector <- convert_to_matrix(matrix = m_mtx, chr_pos = site)
-      sites_ureads_vector <- convert_to_matrix(matrix = u_mtx, chr_pos = site)
+      sites_mreads_vector <- convert_to_matrix(some_matrix = m_mtx, chr_pos = site)
+      sites_ureads_vector <- convert_to_matrix(some_matrix = u_mtx, chr_pos = site)
       return(list("mm" = sites_mreads_vector,
                   "um" = sites_ureads_vector))
     }else{
