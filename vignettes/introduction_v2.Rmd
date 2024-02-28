@@ -1,0 +1,261 @@
+---
+title: "Introduction to Memento - version 2"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Introduction to Memento - version 2}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>"
+)
+library(knitr)
+```
+
+
+## Base Case: The Three State Model
+
+Let's load some useful libraries and some simulated data for 100 sites.
+<style>
+    img {
+        border: 0;
+    }
+</style>
+```{r load_lib_object}
+library(ape)
+library(data.table)
+library(memento)
+
+data("object")
+str(object)
+```
+
+Followed by a bit of data cleaning...
+
+```{r clean}
+meth_mtx <- object$MF + object$MR
+unmeth_mtx <- object$UF + object$UR
+colnames(meth_mtx) <- colnames(unmeth_mtx) <- object$tree$tip.label
+chr_pos_object <- paste0(object$details$Chrom, "_", object$details$Pos)
+rownames(meth_mtx) <- rownames(unmeth_mtx) <- chr_pos_object
+
+df_meta <- object$meta
+filters <- object$filter.param
+dt_annotation <- data.table(object$details)
+dt_annotation[, chr_pos := paste0(Chrom, "_", Pos)]
+setkey(dt_annotation, chr_pos)
+
+tree <- object$tree
+tree$tip.label <- gsub("PD40521_Normal_EM1_", "", tree$tip.label)
+colnames(meth_mtx) <- colnames(unmeth_mtx) <- gsub("PD40521_Normal_EM1_", "", 
+                                                   colnames(unmeth_mtx))
+range(tree$edge.length)
+```
+
+```{r rescale_poly, out.width="700px", out.height="700px", dpi = 300, fig.height=8, fig.width=8, fig.fullwidth=TRUE}
+tree_di <- tree
+if(any(tree$edge.length == 0)){
+  tree <- di2multi(tree) # convert to polytomy
+}
+tree
+{par(mar=rep(1, 4))
+  plot.phylo(tree)
+  nodelabels(cex = 0.6)
+  edgelabels(cex = 0.6)}
+```
+
+```{r plot_unit, out.width="700px", out.height="700px", dpi = 300, fig.height=8, fig.width=8, fig.fullwidth=TRUE}
+unit_tree <- tree
+unit_tree$edge.length <- rep(1, length(unit_tree$edge.length))
+{par(mar=rep(1, 4))
+  plot.phylo(unit_tree)
+  nodelabels(cex = 0.8)
+  edgelabels(cex = 0.8)}
+```
+
+```{r settings}
+settings <- memento_settings()
+settings
+```
+
+```{r echo=FALSE, results='asis', fig.align = 'left'}
+states_mtx <- settings[["state_transition_mtx"]]
+new_names <- paste0(dimnames(states_mtx)[[1]], c(" (0)", " (0.5)", " (1)"))
+dimnames(states_mtx) <- list(new_names, new_names)
+
+knitr::kable(states_mtx, position = "left", align = "ccc", "html")
+```
+
+
+```{r find_changes_full}
+priors <- generate_priors(full_tree = tree, 
+                          m = 2)
+# find changes
+assignments_full <- compute_probabilities3(priors_per_tree = priors,
+                                     m_reads_matrix = meth_mtx,
+                                     u_reads_matrix = unmeth_mtx, 
+                                     n_top_br = 2,
+                                     ro = 0.95, 
+                                     verbose = TRUE)
+head(assignments_full, 10)
+
+```
+
+```{r hm_full, out.width="700px", out.height="700px", dpi = 300, fig.height=10, fig.width=10, fig.fullwidth=TRUE}
+rate_mtx <- meth_mtx/(meth_mtx + unmeth_mtx)
+
+assignments_best <- assignments_full[rank == 1,]
+
+some_assignments <- c("n.3:9", "58.3:7","29_58.1:2_3", "2_17.2:4_3", "18_30.3:7_8", 
+                      "32_35.2:6_8", "31_36.2:6_7", "4_30.3:8_8")
+
+for(i in 1:length(some_assignments)){
+  hm_plot <- plot_heatmap(assignment = some_assignments[i],
+                          full_dt = assignments_best,
+                          meth_rate_mtx = rate_mtx,
+                          tree = tree)
+  plot(hm_plot)
+}
+
+```
+
+```{r, error=TRUE}
+subtrees <- divide_tree_into_subtrees(full_tree = tree, max_subtree_size = 15)
+```
+
+```{r}
+subtrees <- divide_tree_into_subtrees(full_tree = tree, max_subtree_size = 12)
+subtrees_custom <- divide_tree_into_subtrees(full_tree = tree, custom_nodes = c(47, 33))
+#subtrees <- divide_tree_into_subtrees(full_tree = tree, custom_nodes = c(48, 41, 33))
+```
+
+
+```{r plot_subtrees, fig.align = "center", out.width="700px", out.height="700px", dpi = 300, fig.height=10, fig.width=10, fig.fullwidth=TRUE}
+j <- rep(c(1:length(subtrees)), each = 2)
+cex_val <- 1.5
+par(mfrow = c(length(subtrees), 2),
+    mar = c(1, 1, 1, 1))
+for(i in 1:(2*length(subtrees))){
+  my_tree <- subtrees[[j[i]]]
+  if(i %% 2 == 0){
+    my_tree_unit <- my_tree
+    my_tree_unit$edge.length <- rep(1, length(my_tree_unit$edge.length))
+    {plot.phylo(my_tree_unit, main = names(subtrees)[j[i]], cex = cex_val)
+      nodelabels(cex = cex_val)
+      edgelabels(cex = cex_val)}
+  }else{
+    {plot.phylo(my_tree, main = names(subtrees)[j[i]], cex = cex_val)
+      nodelabels(cex = cex_val)
+      edgelabels(cex = cex_val)}
+  }
+}
+
+```
+
+```{r}
+priors_p_subtree <- generate_priors(all_trees = subtrees, full_tree = tree)
+gv <- rep(0.05, nrow(meth_mtx))
+names(gv) <- rownames(meth_mtx)
+dv <- gv
+tryme <- run_EM_on_subtrees(full_tree = tree,
+                            subtrees = subtrees,
+                            priors_p_subtree = priors_p_subtree,
+                            meth_mtx = meth_mtx,
+                            unmeth_mtx = unmeth_mtx,
+                            gammas = gv,
+                            deltas = dv)
+#tryme <- mle_tmp
+#pdf(file = "tmp_rec_3s.pdf", width = 8, height = 8, "in")
+for(i in 1:30){
+  hm_plot_split <- plot_heatmap(assignment = tryme$branch[i],
+                       full_dt = tryme,
+                       meth_rate_mtx = rate_mtx,
+                       tree = tree,
+                       custom_subtitle = sprintf("prob: %.2f, gamma: %.2f, delta: %.2f", 
+                                                 tryme$probability[i],
+                                                 tryme$gamma[i], 
+                                                 tryme$delta[i]))
+  plot(hm_plot_split)
+}
+#dev.off()
+```
+
+
+```{r, eval=FALSE}
+subtrees <- divide_tree_into_subtrees(full_tree = tree, max_subtree_size = 12)
+
+priors_p_subtree_phased <- generate_priors(all_trees = subtrees,
+                                           full_tree = tree)
+gv <- rep(0.05, nrow(mtx_list[[1]]))
+names(gv) <- rownames(mtx_list[[1]])
+dv <- gv
+
+tryme_phased <- run_EM_on_subtrees(full_tree = tree,
+                            subtrees = subtrees,
+                            priors_p_subtree = priors_p_subtree_phased,
+                            matrix_list = mtx_list,
+                            gammas = gv,
+                            deltas = dv,
+                            em_rounds = 10,
+                            return_intermediate_assignments = TRUE)
+```
+
+```{r, eval=FALSE}
+dt_phased <- tryme_phased$converted_dt # mle_tmp # 
+i <- 1
+pdf(file = "tmp_rec_4s_sweep.pdf", width = 8, height = 8, "in")
+for(i in c(1:100)){
+  hm_plot_phased_split <- plot_heatmap(assignment = dt_phased$branch[i],
+                       full_dt = dt_phased,
+                       meth_rate_mtx = rate_mtx_list,
+                       custom_subtitle = sprintf("prob: %.2f, gamma: %.2f, delta: %.2f, em round: %i",
+                                                 dt_phased$probability[i],
+                                                 dt_phased$gamma[i],
+                                                 dt_phased$delta[i],
+                                                 dt_phased$em_round[i]),
+                       tree = tree)#,
+                       #show_bar = TRUE)
+  # hm_plot_phased_split <- plot_heatmap(assignment = tryme_phased_30$branch[i],
+  #                      full_dt = tryme_phased_30,
+  #                      meth_rate_mtx = rate_mtx_list,
+  #                      custom_subtitle = tryme_phased_30$probability[i],
+  #                      tree = tree)
+
+  plot(hm_plot_phased_split)
+}
+dev.off()
+
+problematic_site <- do.call("rbind", lapply(tryme_phased$intermediate, function(x) x[chr_pos == "1_16"]))
+pdf(file = "tmp_1_16_gd_cor_rec.pdf", width = 8, height = 8, "in")
+for(j in 1:nrow(problematic_site)){
+    hm_plot_phased_split <- plot_heatmap(assignment = problematic_site$branch[j],
+                       full_dt = problematic_site[j,],
+                       meth_rate_mtx = rate_mtx_list,
+                       custom_subtitle = sprintf("prob: %.2f, gamma: %.2f, delta: %.2f, em round: %i",
+                                                 problematic_site$probability[j],
+                                                 problematic_site$gamma[j], 
+                                                 problematic_site$delta[j],
+                                                 problematic_site$em_round[j]),
+                       tree = tree)
+
+  plot(hm_plot_phased_split)
+}
+dev.off()
+for(i in 41:50){
+  hm_plot_phased_split <- plot_heatmap(assignment = tryme_phased$branch[i],
+                       full_dt = tryme_phased,
+                       meth_rate_mtx = rate_mtx_list,
+                       custom_subtitle = tryme_phased$probability[i],
+                       tree = tree,
+                       meth_reads_list = mtx_list,
+                       show_bar = TRUE)
+  plot(hm_plot_phased_split)
+}
+
+
+```
+
+
