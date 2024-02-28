@@ -156,6 +156,7 @@ clean_up <- function(items, root_ss){
 #' @param max_gamma numeric: maximum value for gamma
 #' @param max_delta numeric: maximum value for delta
 #' @param min_tips_in_state integer: minimum number of tips in state 0/1 to infer gamma and delta
+#' @param site_specific logical: if gamma/delta should be site or colony specific
 #'
 #' @return data.table of final assignments or list of data.table of assignments and intermediate solutions
 #' @export
@@ -187,7 +188,8 @@ run_EM_on_subtrees <- function(full_tree,
                                min_delta = 0.01,
                                max_gamma=0.4,
                                max_delta=0.4,
-                               min_tips_in_state=5){
+                               min_tips_in_state=5,
+                               site_specific = TRUE){
   chr_pos = branch = only_branch = starting_state = n_assignments = Chrom = NULL
   Pos = probability = em_round = delta = gamma = NULL
 
@@ -284,6 +286,7 @@ run_EM_on_subtrees <- function(full_tree,
                             true_tip_vector = real_tip_vectors,
                             only_return_likelihoods = rep(TRUE, length(priors_p_subtree)),
                             add_priors_to_likelihoods = rep(TRUE, length(priors_p_subtree)),
+                            site_specific = rep(TRUE, length(priors_p_subtree)),
                             SIMPLIFY = FALSE)
     }else{ # 4 state model
       likelihoods <- mapply(FUN = compute_probabilities3,
@@ -295,6 +298,7 @@ run_EM_on_subtrees <- function(full_tree,
                             true_tip_vector = real_tip_vectors,
                             only_return_likelihoods = rep(TRUE, length(priors_p_subtree)),
                             add_priors_to_likelihoods = rep(TRUE, length(priors_p_subtree)),
+                            site_specific = rep(TRUE, length(priors_p_subtree)),
                             SIMPLIFY = FALSE)
     }
 
