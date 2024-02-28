@@ -14,6 +14,13 @@ colnames(the$state_transition_mtx) <- rownames(the$state_transition_mtx) <- as.c
 
 the$state_transition_vec_out <- rep(c(1:the$number_of_states), the$number_of_states)
 the$tree_branch_is_snv <- FALSE
+the$full_tree <- NULL
+the$global_edges_vector_sort <- NULL
+the$global_tips_vector <- NULL
+the$subtree_sub_nodes <- NULL
+the$global_subtree_priors_affected_tips <- NULL
+the$top_per_site_name <- NULL
+the$list_of_subtree_sol_name_per_ss <- NULL
 
 rebase <- function(b, base = 10){
   base <- as.integer(base)
@@ -118,7 +125,14 @@ memento_settings <- function() {
               "snv_rate_per_year" = the$snv_rate_per_year,
               "num_bases_in_genome" = the$num_bases_in_genome,
               "human.snv.rate.per.base" = the$human.snv.rate.per.base,
-              "use_Rfast" = the$use_Rfast))
+              "use_Rfast" = the$use_Rfast,
+              "full_tree_is_null" = is.null(the$full_tree),
+              "global_edges_vector_sort_is_null" = is.null(the$global_edges_vector_sort),
+              "subtree_sub_nodes_is_null" = is.null(the$global_tips_vector),
+              "subtree_sub_nodes_is_null" = is.null(the$subtree_sub_nodes),
+              "global_subtree_priors_affected_tips_is_null" = is.null(the$global_subtree_priors_affected_tips),
+              "top_per_site_name_is_null" = is.null(the$top_per_site_name),
+              "list_of_subtree_sol_name_per_ss_is_null" = is.null(the$list_of_subtree_sol_name_per_ss)))
 }
 
 ## @param human.snv.rate.per.base human snv rate per base (usually 20/3e9)
@@ -175,9 +189,6 @@ set_memento_settings <- function(new_number_of_states = NULL,
     the$Q <- getQMatrix(the$df_rate)
   }
 
-  # if(!is.null(human.snv.rate.per.base)){
-  #   the$human.snv.rate.per.base <- human.snv.rate.per.base
-  # }
   if(!is.null(new_epi_fwd)){
     the$epi_fwd <- new_epi_fwd
   }
@@ -238,7 +249,6 @@ set_memento_settings <- function(new_number_of_states = NULL,
 #' memento_settings()
 set_memento_settings_to_default <- function(){
   the$number_of_states <- 3
-  # the$human.snv.rate.per.base=20/3e9
   the$epi_fwd = 1e5
   the$epi_bck = 1e5
   the$snv_rate_per_year <- 20
@@ -267,9 +277,27 @@ set_memento_settings_to_default <- function(){
   the$use_ff <- FALSE
   the$tree_branch_is_snv <- FALSE
   the$use_Rfast <- FALSE
+
+  the$full_tree <- NULL
+  the$global_edges_vector_sort <- NULL
+  the$global_tips_vector <- NULL
+  the$subtree_sub_nodes <- NULL
+  the$global_subtree_priors_affected_tips <- NULL
+  the$top_per_site_name <- NULL
+  the$list_of_subtree_sol_name_per_ss <- NULL
 }
 
 ignore_unused_imports <- function() {
   HDF5Array::H5ADMatrix
 }
 
+wipe_before_EM <- function(){
+  the$full_tree <- NULL
+  the$global_edges_vector_sort <- NULL
+  the$global_tips_vector <- NULL
+  the$subtree_sub_nodes <- NULL
+  the$global_subtree_priors_affected_tips <- NULL
+  the$top_per_site_name <- NULL
+  the$list_of_subtree_sol_name_per_ss <- NULL
+  invisible()
+}
