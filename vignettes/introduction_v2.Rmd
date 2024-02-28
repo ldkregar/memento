@@ -203,6 +203,7 @@ tryme_phased <- run_EM_on_subtrees(full_tree = tree,
                             return_intermediate_assignments = TRUE)
 ```
 
+
 ```{r, eval=FALSE}
 dt_phased <- tryme_phased$converted_dt # mle_tmp # 
 i <- 1
