@@ -825,21 +825,6 @@ estimate_likelihoods <- function(genotype_vectors,
                                               node_is_real_tip = node_is_real_tip)
   }
 
-  # if(top_assignment_per_state){ # get which SS are the genotypes in
-  #   test_pattern <- "(?<=\\.).*(?=:)"
-  #   genotype_vec_ss <- regmatches(vector_col_names,
-  #                                 gregexpr(test_pattern,
-  #                                          vector_col_names,
-  #                                          perl=TRUE))
-  #   genotype_vec_ss <- as.numeric(genotype_vec_ss)
-  #   unq_ss <- sort(unique(genotype_vec_ss))
-  # }
-  # if(verbose){
-  #   cat(sprintf("Now working on tree with %i tips: %s\n",
-  #               length(one_tree$tip.label),
-  #               paste(one_tree$tip.label, collapse = ", ")))
-  # }
-
   # prepare a matrix for each state, where tips is state S have 1 and 0 elsewhere
   prep_gnt_tf <- lapply(c(1:the$number_of_states), function(si){
     yy <- genotype_matrix == si
@@ -866,13 +851,6 @@ estimate_likelihoods <- function(genotype_vectors,
   }
 
   n_genotypes <- length(vector_col_names)
-  # only_prior_values_1 <- unlist(branch_lengths, recursive = FALSE)
-  # only_prior_values_2 <- sapply(only_prior_values_1, "[[", 1)
-  #
-  # prior1=matrix(data = base::rep(x = only_prior_values_2, times = nsites),
-  #               nrow=nsites,
-  #               ncol=length(only_prior_values_2),
-  #               byrow = TRUE)
 
   if(length(gamma) == 1 & length(delta) == 1 &
      all(is.na(gamma)) & all(is.na(delta))){
@@ -968,10 +946,11 @@ estimate_likelihoods <- function(genotype_vectors,
     }
 
     if(the$number_of_states < 4){
-      if(site_specific){
+      if(site_specific == FALSE){
         methcount <- t(methcount)
         wtcount <- t(wtcount)
       }
+      stopifnot(length(a) == nrow(methcount))
 
       # tmp1 <- Rfast::eachrow(methcount, a, "*")
       tmp1 <- sweep(methcount, MARGIN = 1, a, "*")
@@ -986,7 +965,7 @@ estimate_likelihoods <- function(genotype_vectors,
       # tmp6 <- Rfast::eachrow(wtcount, f, "*")
       tmp6 <- sweep(wtcount, 1, f, "*")
 
-      if(site_specific){
+      if(site_specific == FALSE){
         tmp1 <- t(tmp1)
         tmp2 <- t(tmp2)
         tmp3 <- t(tmp3)
