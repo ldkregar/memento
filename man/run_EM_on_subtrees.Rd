@@ -65,6 +65,8 @@ run_EM_on_subtrees(
 \item{max_delta}{numeric: maximum value for delta}
 
 \item{min_tips_in_state}{integer: minimum number of tips in state 0/1 to infer gamma and delta}
+
+\item{site_specific}{logical: if gamma/delta should be site or colony specific}
 }
 \value{
 data.table of final assignments or list of data.table of assignments and intermediate solutions
