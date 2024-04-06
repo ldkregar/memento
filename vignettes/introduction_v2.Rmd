@@ -1,12 +1,11 @@
 ---
-title: "Introduction to Memento - version 2"
+title: "Introduction to Memento"
 output: rmarkdown::html_vignette
 vignette: >
-  %\VignetteIndexEntry{Introduction to Memento - version 2}
+  %\VignetteIndexEntry{Introduction to Memento}
   %\VignetteEngine{knitr::rmarkdown}
   %\VignetteEncoding{UTF-8}
 ---
-
 ```{r, include = FALSE}
 knitr::opts_chunk$set(
   collapse = TRUE,
@@ -15,13 +14,15 @@ knitr::opts_chunk$set(
 library(knitr)
 ```
 
-
 ## Base Case: The Three State Model
 
 Let's load some useful libraries and some simulated data for 100 sites.
 <style>
     img {
         border: 0;
+    }
+    body {
+    text-align: justify;
     }
 </style>
 ```{r load_lib_object}
@@ -55,6 +56,8 @@ colnames(meth_mtx) <- colnames(unmeth_mtx) <- gsub("PD40521_Normal_EM1_", "",
 range(tree$edge.length)
 ```
 
+The tree's branch lengths are in units of years (the individual's age). Memento allows you to input trees with branch lengths in units of years or number of SNVs. If the latter is true, set the boolean Memento setting `tree_branch_is_snv` to `TRUE`. Ensure the tree does not contain zero-length branches and convert the bifurcating tree to a polytomous one.
+
 ```{r rescale_poly, out.width="700px", out.height="700px", dpi = 300, fig.height=8, fig.width=8, fig.fullwidth=TRUE}
 tree_di <- tree
 if(any(tree$edge.length == 0)){
@@ -67,6 +70,8 @@ tree
   edgelabels(cex = 0.6)}
 ```
 
+Some labels at the top of the tree are overlapping. Let's see what a tree in which each branch length is 1 unit long looks like.
+
 ```{r plot_unit, out.width="700px", out.height="700px", dpi = 300, fig.height=8, fig.width=8, fig.fullwidth=TRUE}
 unit_tree <- tree
 unit_tree$edge.length <- rep(1, length(unit_tree$edge.length))
@@ -75,11 +80,33 @@ unit_tree$edge.length <- rep(1, length(unit_tree$edge.length))
   nodelabels(cex = 0.8)
   edgelabels(cex = 0.8)}
 ```
+That's better.
+
+To use Memento to find changes in methylation states on a phylogeny, we have to specify the model (or at least ensure the default settings are appropriate for the data we are analysing).
 
 ```{r settings}
 settings <- memento_settings()
 settings
 ```
+### Mandatory settings
+
+The only setting we must set is the number of states since this is determined by the data. By default, the number of states is three - we expect a CpG site to be either unmethylated, half-methylated (methylated on one chromosome, but not the other - in a diploid cell) or methylated. This assumption holds for autosomal chromosomes as well as X chromosomes in females, but we would use the two state model for male sex chromosomes (a CpG will be either methylated or unmethylated) or the four state model for when we have phased data (a CpG is unmethylated on both chromosomes, methylated on one chromosome but not the other, unmethylated on one chromosome but not the other, and methylated on both).
+
+Here, we'll be working with the three state model - the three states correspond to 0, 0.5 and 1 methlyated read fractions, respectively. The fraction is computed by dividing the number of methylated reads by the total number of reads at that site. As there are 3 states, there are 9 possible transitions. To change the settings to a four state model, call `set_memento_settings(new_number_of_states = 4)`.
+
+### Optional settings
+
+We can set the rates at which we expect the methylation changes to occur. We can do this in several ways, for example, we can supply a new `df_rate` (a data.frame with columns `s.parent`, `s.child` and `rate`). In this case, the three states are enumerated 0, 1 and 2, where 0 is unmethylated, 1 is half-methylated and 2 is methylated, `s.parent` is the state of the parent node on the phylogeny and `s.child` is the state of the child node on the phylogeny (transition occurs on the branch connecting them). Alternatively, we can supply a transition matrix `Q[i,j]`, which specifies the rate for going from state `i` to `j`. Sometimes we want to specify different rates for different CpG contexts.
+
+```{r example_df_rate}
+df_rate <- data.frame("s.parent" = c(1, 2, 0, 2, 0, 1), 
+                      "s.child" = c(0, 0, 1, 1, 2, 2),
+                      "rate" = rep(0.001, 6))
+df_rate
+
+```
+
+The table below shows which state each transition starts from (row) and ends at (column).
 
 ```{r echo=FALSE, results='asis', fig.align = 'left'}
 states_mtx <- settings[["state_transition_mtx"]]
@@ -89,6 +116,7 @@ dimnames(states_mtx) <- list(new_names, new_names)
 knitr::kable(states_mtx, position = "left", align = "ccc", "html")
 ```
 
+Let's find changes. First we compute the priors, which are the probabilities of each expected tip state vector. We set `m` to `2`, meaning we allow up to 2 changes on the phylogeny. We set `n_top_br` to `2`, meaning we ask for best two assignments to be returned. `ro` is the error rate, setting it to `0.95` means we expect `0.95` reads to correctly report the state of the CpG. Alternatively, we can use `gamma` and `delta` to specify state-specific error rates, where `gamma` is the error rate of methylated CpGs and `delta` is the error rate of unmethylated CpGs. For example, if `gamma` is `0.03`, we expect `0.03` reads to report as unmethylated when the CpG is methylated, while `delta` of `0.04` suggests we expect `0.04` reads to report as methylated when the CpG site is in fact unmethylated.
 
 ```{r find_changes_full}
 priors <- generate_priors(full_tree = tree, 
@@ -100,16 +128,27 @@ assignments_full <- compute_probabilities3(priors_per_tree = priors,
                                      n_top_br = 2,
                                      ro = 0.95, 
                                      verbose = TRUE)
-head(assignments_full, 10)
+setkey(assignments_full, Chrom, Pos, rank)
+head(assignments_full, 12)
 
 ```
+
+Great, we have found state changes for each site. The columns `only_branch`, `starting_state` and `branch_state` show which branches changed, the starting state at the root node and which transitions the branches underwent, respectively. The column `probability` contains the probability of a given assignment, while `rank` reports an assignment's rank.
+
+Columns that start with "ss_" contain the sum of branch lengths, which start in each possible state (here 1, 2 or 3, which correspond to demethylated, half-methylated and methylated, respectively), while columns that start with "nt_" show the number of transitions of each type that occurred in that assignment. These columns are used for estimating rates.
+
+At position 4 on chromosome 1, the most likely assignment (`rank` = `1`) for this position is "n", which means "no change" so the root and tip states are the same. The starting state is inferred to be in state 1 (unmethylated) and branch changes are of type 1 (the transition is from state 0 to 0). This assignment has a probability of 99.7%. A row below, the `rank` = `2` row reports the second most likely assignment for this position and has a probability of less than 1%.
+
+At position 3 on chromosome 1, the most likely assignment is a combination of two changes on branches 46 and 47, both transitioning from state 2 to 3 (half-methylated to methylated). The root starting state is 2 (half-methylated). Second best assignment is a single change on branch 45, transitioning from state 2 to 3.
+
+Let's see what these assignments actually look like. We're only interested in the best solution so we'll filter the others out.
 
 ```{r hm_full, out.width="700px", out.height="700px", dpi = 300, fig.height=10, fig.width=10, fig.fullwidth=TRUE}
 rate_mtx <- meth_mtx/(meth_mtx + unmeth_mtx)
 
 assignments_best <- assignments_full[rank == 1,]
 
-some_assignments <- c("n.3:9", "58.3:7","29_58.1:2_3", "2_17.2:4_3", "18_30.3:7_8", 
+some_assignments <- c("n.3:9", "46_47.2:6_6","58.3:7","29_58.1:2_3", "2_17.2:4_3", "18_30.3:7_8", 
                       "32_35.2:6_8", "31_36.2:6_7", "4_30.3:8_8")
 
 for(i in 1:length(some_assignments)){
@@ -122,16 +161,24 @@ for(i in 1:length(some_assignments)){
 
 ```
 
+## Advanced Case: Splitting the Phylogeny
+
+In some heatmaps, it seems like additional changes occurred but since we only allow up to 2 changes, these aren't picked up. This tree has 30 branches, which is quite a lot, so if we allow more than 3 independent changes, computing the priors will be very time (and memory) consuming. To avoid this, we can split the tree into smaller subtrees, and find changes to each subtree. Allowing 3 changes per subtree across 2 subtrees, we can find up to 6 changes on the full tree (2 subtrees * 3 changes per subtree). The function `divide_tree_into_subtrees()` takes the complete tree and finds internal nodes, which have an appropriate number of descendants (appropriate meaning within size limits set by the user), and returns their subtrees along with the root tree, which is the top level tree (its root is the root of the complete tree) that will now have new tips that represent roots of subtrees. The total number of branches across all subtrees will equal the number of branches in the complete phylogeny.
+
 ```{r, error=TRUE}
 subtrees <- divide_tree_into_subtrees(full_tree = tree, max_subtree_size = 15)
 ```
+
+Sometimes, the tree doesn't fall apart into subtrees *nicely*. Try to play around with various cutoffs (aim for between 5 and 20 tips per subtree), or you can provide a list of custom nodes to use as subtree roots. This requires manual inspection of the tree and hand picking the nodes.
 
 ```{r}
 subtrees <- divide_tree_into_subtrees(full_tree = tree, max_subtree_size = 12)
 subtrees_custom <- divide_tree_into_subtrees(full_tree = tree, custom_nodes = c(47, 33))
 #subtrees <- divide_tree_into_subtrees(full_tree = tree, custom_nodes = c(48, 41, 33))
+#subtrees <- divide_tree_into_subtrees(full_tree = tree, max_subtree_size = 6, min_subtree_size = 4)
 ```
 
+Yay, this worked. Let's see what these look like.
 
 ```{r plot_subtrees, fig.align = "center", out.width="700px", out.height="700px", dpi = 300, fig.height=10, fig.width=10, fig.fullwidth=TRUE}
 j <- rep(c(1:length(subtrees)), each = 2)
@@ -155,6 +202,10 @@ for(i in 1:(2*length(subtrees))){
 
 ```
 
+Nice. Let's run the assignment algorithm on the splitted phylogeny. Under the hood, this algorithm uses an expectation-maximisation approach. In the first iteration, it uses some *sensible* error rates (below, we'll set gamma and delta to be site-specific and 0.05) and produces assignments. Then, error rates are estimated from the assignments and used as input for the second iteration. This process is repeated until the assignments stabilise (i.e. a site has the same assignment in two iterations of the algorithm), or at most 5 times (we can modify the number of iterations by setting `em_rounds`).
+
+Because of tree splitting, we can no longer get second-, third- etc. best assignment, but we still obtain a probability of the top assignment.
+
 ```{r}
 priors_p_subtree <- generate_priors(all_trees = subtrees, full_tree = tree)
 gv <- rep(0.05, nrow(meth_mtx))
@@ -167,6 +218,46 @@ tryme <- run_EM_on_subtrees(full_tree = tree,
                             unmeth_mtx = unmeth_mtx,
                             gammas = gv,
                             deltas = dv)
+setkey(tryme, Chrom, Pos)
+head(tryme)
+```
+
+Let's see what these changes look like and compare new assignments to the original ones made on the full tree.
+
+```{r plot_split_as_before, out.width="700px", out.height="700px", dpi = 300, fig.height=10, fig.width=10, fig.fullwidth=TRUE}
+earlier_sites <- assignments_best[branch %in% some_assignments,][["chr_pos"]]
+
+tryme_as_before <- tryme[chr_pos %in% earlier_sites,]
+
+same_sites_new_assignment <- names(sort(table(tryme_as_before[["branch"]]), decreasing = TRUE))
+
+for(i in 1:length(same_sites_new_assignment)){
+  hm_plot_split <- plot_heatmap(assignment = same_sites_new_assignment[i],
+                       full_dt = tryme_as_before,
+                       meth_rate_mtx = rate_mtx,
+                       tree = tree)
+  plot(hm_plot_split)
+}
+
+
+```
+Excellent! We found additional changes!
+
+If we wish to inspect the number of reads at a specific site across colonies, we can also plot a bar chart of the number of reads, example below.
+
+```{r plot_bar, out.width="700px", out.height="700px", dpi = 300, fig.height=10, fig.width=10, fig.fullwidth=TRUE}
+bar_chart1 <- plot_heatmap(assignment = "18_30_46_47.3:7_8_6_6",
+                       full_dt = tryme_as_before,
+                       meth_rate_mtx = rate_mtx,
+                       tree = tree,
+                       meth_reads_list = list("meth_mtx" = meth_mtx,
+                                              "unmeth_mtx" = unmeth_mtx),
+                       show_bar = TRUE)
+plot(bar_chart1)
+
+```
+
+```{r plot_split, eval=FALSE, include=FALSE}
 #tryme <- mle_tmp
 #pdf(file = "tmp_rec_3s.pdf", width = 8, height = 8, "in")
 for(i in 1:30){
@@ -182,9 +273,80 @@ for(i in 1:30){
 }
 #dev.off()
 ```
+```{r, eval=FALSE, include=FALSE}
+subtrees_tiny <- divide_tree_into_subtrees(full_tree = tree, custom_nodes = c(33, 36, 39, 42, 49, 48, 47))
+priors_p_subtree_m1K <- generate_priors(all_trees = subtrees_tiny, full_tree = tree, m = 1000)
+# sapply(subtrees, function(x) length(x$tip.label))
 
+gv <- rep(0.05, nrow(meth_mtx))
+names(gv) <- rownames(meth_mtx)
+dv <- gv
+tryme_m1000 <- run_EM_on_subtrees(full_tree = tree,
+                            subtrees = subtrees_tiny,
+                            priors_p_subtree = priors_p_subtree_m1K,
+                            meth_mtx = meth_mtx,
+                            unmeth_mtx = unmeth_mtx,
+                            gammas = gv,
+                            deltas = dv)
+#tryme <- mle_tmp
+#pdf(file = "tmp_rec_3s.pdf", width = 8, height = 8, "in")
+for(i in 1:30){
+  hm_plot_split <- plot_heatmap(assignment = tryme_m1000$branch[i],
+                       full_dt = tryme_m1000,
+                       meth_rate_mtx = rate_mtx,
+                       tree = tree,
+                       custom_subtitle = sprintf("prob: %.2f, gamma: %.2f, delta: %.2f", 
+                                                 tryme_m1000$probability[i],
+                                                 tryme_m1000$gamma[i], 
+                                                 tryme_m1000$delta[i]))
+  plot(hm_plot_split)
+}
+#dev.off()
 
-```{r, eval=FALSE}
+```
+```{r, eval=FALSE, include=FALSE}
+for(i in dif){
+  hm_plot_split <- plot_heatmap(assignment = tryme_m1000$branch[i],
+                       full_dt = tryme_m1000,
+                       meth_rate_mtx = rate_mtx,
+                       tree = tree,
+                       custom_subtitle = sprintf("M1000: prob: %.2f, gamma: %.2f, delta: %.2f", 
+                                                 tryme_m1000$probability[i],
+                                                 tryme_m1000$gamma[i], 
+                                                 tryme_m1000$delta[i]),
+                       meth_reads_list = list("meth_mtx" = meth_mtx,
+                                              "unmeth_mtx" = unmeth_mtx),
+                       show_bar = TRUE)
+  plot(hm_plot_split)
+  
+  hm_plot_split <- plot_heatmap(assignment = tryme$branch[i],
+                       full_dt = tryme,
+                       meth_rate_mtx = rate_mtx,
+                       tree = tree,
+                       custom_subtitle = sprintf("M3: prob: %.2f, gamma: %.2f, delta: %.2f", 
+                                                 tryme$probability[i],
+                                                 tryme$gamma[i], 
+                                                 tryme$delta[i]),
+                       meth_reads_list = list("meth_mtx" = meth_mtx,
+                                              "unmeth_mtx" = unmeth_mtx),
+                       show_bar = TRUE)
+  plot(hm_plot_split)
+}
+```
+```{r, eval=FALSE, include=FALSE}
+for(i in dif){
+  hm_plot_split <- plot_heatmap(assignment = tryme$branch[i],
+                       full_dt = tryme,
+                       meth_rate_mtx = rate_mtx,
+                       tree = tree,
+                       custom_subtitle = sprintf("prob: %.2f, gamma: %.2f, delta: %.2f", 
+                                                 tryme$probability[i],
+                                                 tryme$gamma[i], 
+                                                 tryme$delta[i]))
+  plot(hm_plot_split)
+}
+```
+```{r, eval=FALSE, include=FALSE}
 subtrees <- divide_tree_into_subtrees(full_tree = tree, max_subtree_size = 12)
 
 priors_p_subtree_phased <- generate_priors(all_trees = subtrees,
@@ -202,9 +364,7 @@ tryme_phased <- run_EM_on_subtrees(full_tree = tree,
                             em_rounds = 10,
                             return_intermediate_assignments = TRUE)
 ```
-
-
-```{r, eval=FALSE}
+```{r, eval=FALSE, include=FALSE}
 dt_phased <- tryme_phased$converted_dt # mle_tmp # 
 i <- 1
 pdf(file = "tmp_rec_4s_sweep.pdf", width = 8, height = 8, "in")
@@ -259,4 +419,6 @@ for(i in 41:50){
 
 ```
 
-
+```{r}
+sessionInfo()
+```
