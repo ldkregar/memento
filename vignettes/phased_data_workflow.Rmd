@@ -15,6 +15,12 @@ knitr::opts_chunk$set(
 library(knitr)
 ```
 
+# This is under construction - check back soon!
+
+```{r}
+knitr::knit_exit()
+```
+
 ## Advanced Case: The Four State Model on The Complete Phylogeny
 
 Let's load some useful libraries and some simulated data for 100 sites.
