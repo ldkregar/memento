@@ -17,20 +17,23 @@ inherited by its descendants.
 
 Memento will take two vectors of counts as well as the phylogeny of tips
 and return the most likely root state, which branches changed and what
-type of change occurred on the branches. Memento relies on naive Bayes
-as it generates all possible tip state vectors for up to m number of
+type of change occurred on the branches. The underlying model is a
+binomial one, where the two vectors of counts are a vector of
+*successes* and a vector of *trials*. Memento relies on naive Bayes as
+it generates all possible tip state vectors for up to $m$ number of
 independent changes on a phylogeny and then compares the observed data
-to each possible expected vector of tip states. The vector with highest
-similarity is selected and since we know how that vector was generated,
-we can infer the root state and which branches changed.
+to each possible expected vector of tip states. The expected tip vector
+with highest similarity to observed is selected and since we know how
+the expected tip vector was generated, we can infer the root state and
+which branches changed.
 
 Since Memento relies on exhaustive search, generating expected tip
 states for many independent changes on a phylogeny quickly becomes
 computationally prohibitive as number of branch permutations grows
-exponentially. To address this, Memento allows the user to split the
-phylogeny, infer most likely state changes on each sub-phylogeny and
-then combine the partial solutions to infer the most likely solution for
-the full phylogeny
+exponentially. To address this, Memento can split the phylogeny, infer
+most likely state changes on each sub-phylogeny and then combine the
+partial solutions to infer the most likely solution for the full
+phylogeny. For this, it uses an expectation-maximisation approach.
 
 Memento also works on phased data and can infer whether a change
 happened on maternal and/or paternal chromosome. This is referred to as
@@ -50,9 +53,16 @@ from a node both underwent the same transition, and another solution
 proposes the ancestral branch of the node underwent that transition, the
 latter will have higher probability.
 
-NB: This library is under active development so some unexpected
-behaviour is to be expected. Drop me an email if you require help, I’m
-at LD18 at sanger dot ac dot uk.
+## Nota Bene
+
+Memento expects phylogeny tip labels to contain characters - ensure this
+is the case! In addition, when supplying lists of read counts to
+functions, ensure the matrices are named correctly. See the vignette for
+examples, this is especially important when dealing with phased data.
+
+This library is under active development so some unexpected behaviour
+may occur. Drop me an email if you require help, I’m at LD18 at sanger
+dot ac dot uk.
 
 ## Installation
 
