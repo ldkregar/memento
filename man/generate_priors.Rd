@@ -25,7 +25,7 @@ generate_priors(
 
 \item{Q_mtx}{Q matrix of transitions}
 
-\item{m}{integer value for number of spontaneous changes on a tree}
+\item{m}{integer value or vector for number of spontaneous changes on a tree, if supplying vector length of vector must correspond to length of all_trees}
 
 \item{verbose}{logical}
 }
