@@ -306,7 +306,7 @@ generate_genotypes <- function(a_t,
 #' @param all_trees list of "phylo" objects
 #' @param epi_fwd numeric value for forward rate (gain of methylation)
 #' @param epi_bck numeric value for backward rate (loss of methylation)
-#' @param m integer value for number of spontaneous changes on a tree
+#' @param m integer value or vector for number of spontaneous changes on a tree, if supplying vector length of vector must correspond to length of all_trees
 #' @param full_tree "phylo" object - entire tree
 #' @param verbose logical
 #' @param Q_mtx Q matrix of transitions
@@ -344,7 +344,11 @@ generate_priors <- function(full_tree,
     if(verbose) cat(sprintf("Computing priors for tree %s (%i of %i)\n", names(all_trees)[i], i, length(all_trees)))
     one_tree <- all_trees[[i]]
     n_branches <- nrow(one_tree$edge)
-    current_m <- min(m, n_branches)
+    if(length(m) == length(all_trees)){
+      current_m <- min(m[i], (length(one_tree$tip.label)-1))
+    }else{
+      current_m <- min(m, (length(one_tree$tip.label)-1))
+    }
     permuts <- generate_permutations(n_branches, m = current_m) # possible permutations of changes given tree
     stopifnot(all(unname(table(rowSums(permuts))) == sapply(0:current_m, choose, n = n_branches)))
     totsnvs=sum(one_tree$edge.length)
