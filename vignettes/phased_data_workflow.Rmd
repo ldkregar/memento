@@ -20,15 +20,22 @@ library(knitr)
 ```{r}
 knitr::knit_exit()
 ```
-
-## Advanced Case: The Four State Model on The Complete Phylogeny
-
-Let's load some useful libraries and some simulated data for 100 sites.
 <style>
     img {
         border: 0;
     }
+    body {
+    text-align: justify;
+    }
 </style>
+## Analysis of Phased Data
+
+In diploid cells, when a sequenced read overlaps a heterozygous SNP, one is able to group reads according to which chromosome they are sequenced from. Memento can take advantage of this information and can assign changes in methylation states to maternal or paternal chromosomes. __NB:__ without sequencing the parental genomes, one cannot ascertain which parent a chromosome came from - we use the labels maternal and paternal interchangeably.
+
+When phased data is available, each CpG site can be in one of four states: unmethylated on both chromosomes (maternal and paternal (MP): 00), unmethylated on the maternal chromosome and methylated on the paternal chromosome (MP: 01), methylated on the maternal chromosome and unmethylated on the paternal chromosome (MP: 10), or methylated on both chromosomes (MP: 11).
+
+As before, let's load some useful libraries and some simulated data for 100 sites.
+
 ```{r load_lib_object}
 library(ape)
 library(data.table)
@@ -38,7 +45,7 @@ data("object_phased")
 str(object_phased)
 ```
 
-And a bit of data cleaning. As before, the tree must be rescaled so that branch lengths are number of SNVs.
+And a bit of data cleaning...
 
 ```{r clean}
 df_meta <- object_phased$meta
@@ -61,14 +68,18 @@ for(i in 1:length(mtx_list)){
 
 range(tree$edge.length)
 
-#tree$edge.length <- tree$edge.length*20
 tree_di <- tree
 if(any(tree$edge.length == 0)){
   tree <- di2multi(tree) # convert to polytomy
 }
 tree
 ```
-Update settings to four states.
+
+### NB
+
+It is very important for the input data be named and structured correctly when analysing phased data. One must provide a list of matrices with the correct names, which are: `names(mtx_list)`. Here, the part of the string before the underscore, `_`, namely `MT`, `PT` and `U` refer to maternal transcripts, paternal transcripts and unphased, respectively, while the second part of the string, `M` and `U` refer to methylated and unmethylated reads, respectively. Ensure the input data corresponds to this.
+
+Next, we have to update the model to four states.
 
 ```{r settings}
 settings <- memento_settings()
@@ -77,22 +88,24 @@ set_memento_settings(new_number_of_states = 4)
 new_settings <- memento_settings()
 new_settings
 ```
-Find changes on full tree.
+
+Again, let's find changes on the full tree. We start by generating priors and then estimating likelihoods and computing probabilities of assignments in a single step with `compute_probabilities3`.
 
 ```{r find_changes_full}
 priors_phased <- generate_priors(full_tree = tree, 
                                  m = 2)
 # find changes
-assignments_phased_full <- compute_probabilities(priors_per_tree = priors_phased,
+assignments_phased_full <- compute_probabilities3(priors_per_tree = priors_phased,
                                                  matrix_list = mtx_list,
                                                  n_top_br = 2,
                                                  ro = 0.95, 
                                                  verbose = TRUE)
+setkey(assignments_phased_full, Chrom, Pos, rank)
 head(assignments_phased_full, 10)
 
 ```
 
-Plot changes. The reads at each site will now be plotted as a trio of maternal, paternal and unphased reads.
+Let's plot these results. Since reads are either maternal, paternal or unphased, each CpG site will be plotted as a trio of columns.
 
 ```{r hm_full, out.width="700px", out.height="700px", dpi = 300, fig.height=10, fig.width=10, fig.fullwidth=TRUE}
 rate_mtx_list <- list("MT_rate" = mtx_list$MT_M/(mtx_list$MT_M + mtx_list$MT_U),
@@ -101,7 +114,7 @@ rate_mtx_list <- list("MT_rate" = mtx_list$MT_M/(mtx_list$MT_M + mtx_list$MT_U),
 
 assignments_phased_best <- assignments_phased_full[rank == 1,]
 
-some_phased_assignments <- c("58.4:15", "2_33.3:9_10", "27_50.1:3_2",
+some_phased_assignments <- c("n.1:1","58.4:15", "2_33.3:9_10", "27_50.1:3_2",
                              "1_45.3:10_10", "7_32.1:3_3", "1_45.3:9_10")
 
 for(i in 1:length(some_phased_assignments)){
@@ -114,61 +127,50 @@ for(i in 1:length(some_phased_assignments)){
 
 ```
 
-## Advanced Case: Splitting the Phylogeny
+## Splitting the Phylogeny
 
-As in the three state model, we split the tree and assign changes. 
+To find multiple independent changes on the full tree, we would have generate many possible expected tip states. To avoid the exponential explosion of plausible tip states, we split the tree into smaller subtrees, assign changes on each of them and then combine the solutions in a recursive manner. For this, Memento relies on an expectation-maximisation approach, where it first uses some *sensible* error rates for gamma and delta to assign changes and then estimates new error rates from thes assignments. This process is repeated until the results stabilise.
 
 ```{r four_state_split}
 subtrees <- divide_tree_into_subtrees(full_tree = tree, max_subtree_size = 12)
-
 # compute priors
-priors_p_subtree_phased <- generate_priors(all_trees = subtrees, 
+priors_p_subtree_phased <- generate_priors(all_trees = subtrees,
                                            full_tree = tree)
+# supply gammma and delta values per site
+gv <- rep(0.05, nrow(mtx_list[[1]]))
+names(gv) <- rownames(mtx_list[[1]])
+dv <- gv
 
 # find changes on each subtree
-assignments_split_phased <- lapply(priors_p_subtree_phased,
-                                   compute_probabilities, 
-                                   matrix_list = mtx_list,
-                                   ro = 0.95, 
-                                   verbose = TRUE)
-head(assignments_split_phased[[1]])
-# find candidate changes on the full tree
-converted_dt_phased <- convert_sub_to_full_tree_branches(assignments = assignments_split_phased,
-                                                  subtrees = subtrees,
-                                                  full_tree = tree)
-head(converted_dt_phased)
+tryme_phased <- run_EM_on_subtrees(full_tree = tree,
+                            subtrees = subtrees,
+                            priors_p_subtree = priors_p_subtree_phased,
+                            matrix_list = mtx_list,
+                            gammas = gv,
+                            deltas = dv)
 
-mle_branch_dt_phased <- find_most_likely_set(dt_pre =  converted_dt_phased,
-                                             full_tree = tree,
-                                             ro = 0.95,
-                                             n_top_br = 2,
-                                             mtx_list = mtx_list,
-                                             fraction_estimate = 1,
-                                             verbose = FALSE,
-                                             dt_anno = dt_annotation)
-head(mle_branch_dt_phased)
+setkey(tryme_phased, Chrom, Pos)
+head(tryme_phased, 10)
 ```
 
-Plot changes on the phylogeny.
+Let's plot the same sites as before.
 
 ```{r plot_phased_four, out.width="700px", out.height="700px", dpi = 300, fig.height=10, fig.width=10, fig.fullwidth=TRUE}
-mle_dt_best_phased <- mle_branch_dt_phased[rank == 1,]
-same_sites_as_before <- assignments_phased_best[branch %in% some_phased_assignments][["chr_pos"]] # filter to plotted positions
-mle_subset_phased <- mle_dt_best_phased[chr_pos %in% same_sites_as_before]
-mle_subset_phased[, .(probability, branch, only_branch, starting_state, branch_state, n_assignments_mle)]
+earlier_sites_phased <- assignments_phased_full[branch %in% some_phased_assignments,][["chr_pos"]]
 
-same_sites_new_assignment <- names(sort(table(mle_subset_phased[["branch"]]), decreasing = TRUE))
+tryme_phased_as_before <- tryme_phased[chr_pos %in% earlier_sites_phased,]
 
-for(i in 1:length(same_sites_new_assignment)){
-  hm_plot_phased_split <- plot_heatmap(assignment = same_sites_new_assignment[i],
-                       full_dt = mle_subset_phased,
+same_sites_new_assignment_phased <- names(sort(table(tryme_phased_as_before[["branch"]]), decreasing = TRUE))
+
+for(i in 1:length(same_sites_new_assignment_phased)){
+  hm_plot_phased_split <- plot_heatmap(assignment = same_sites_new_assignment_phased[i],
+                       full_dt = tryme_phased,
                        meth_rate_mtx = rate_mtx_list,
                        tree = tree)
   plot(hm_plot_phased_split)
 }
 
 ```
-
 
 ```{r}
 sessionInfo()
