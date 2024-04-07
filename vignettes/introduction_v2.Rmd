@@ -13,10 +13,6 @@ knitr::opts_chunk$set(
 )
 library(knitr)
 ```
-
-## Base Case: The Three State Model
-
-Let's load some useful libraries and some simulated data for 100 sites.
 <style>
     img {
         border: 0;
@@ -25,6 +21,10 @@ Let's load some useful libraries and some simulated data for 100 sites.
     text-align: justify;
     }
 </style>
+## Base Case: The Three State Model
+
+Let's load some useful libraries and some simulated data for 100 sites.
+
 ```{r load_lib_object}
 library(ape)
 library(data.table)
