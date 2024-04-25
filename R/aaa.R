@@ -291,6 +291,15 @@ ignore_unused_imports <- function() {
   HDF5Array::H5ADMatrix
 }
 
+#' Wipe global variables set by memento
+#'
+#' @return NULL
+#' @export
+#'
+#' @examples
+#' \dontrun{
+#' hi <- wipe_before_EM()
+#' }
 wipe_before_EM <- function(){
   the$full_tree <- NULL
   the$global_edges_vector_sort <- NULL
