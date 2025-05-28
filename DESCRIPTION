@@ -28,7 +28,7 @@ Imports:
     phangorn,
     phytools,
     plyr,
-    Rfast,
+    rgpumult,
     rlang,
     tidytree
 Suggests: 
