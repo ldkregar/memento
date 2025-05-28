@@ -1123,7 +1123,6 @@ estimate_likelihoods <- function(genotype_vectors,
       p_new=gpumult((tmp1 + tmp2), prep_gnt_tf[["3"]]) +
         gpumult((tmp3 + tmp4), prep_gnt_tf[["2"]]) +
         gpumult((tmp5 + tmp6), prep_gnt_tf[["1"]])
-    }
     }else{
       p_new=eigenMapMatMult2((tmp1 + tmp2), prep_gnt_tf[["3"]]) +
         eigenMapMatMult2((tmp3 + tmp4), prep_gnt_tf[["2"]]) +
