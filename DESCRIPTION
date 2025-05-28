@@ -24,6 +24,7 @@ Imports:
     magrittr,
     matrixcalc,
     methods,
+    Matrix,
     patchwork,
     phangorn,
     phytools,
