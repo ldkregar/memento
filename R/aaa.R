@@ -105,6 +105,7 @@ the$Q <- getQMatrix(the$df_rate)
 the$useQ <- FALSE
 the$use_ff <- FALSE
 the$use_Rfast <- FALSE
+the$use_rgpumult <- FALSE
 
 #' Report my default settings
 #'
