@@ -4,4 +4,3 @@
 eigenMapMatMult2 <- function(A, B, n_cores = 8L) {
     .Call('_memento_eigenMapMatMult2', PACKAGE = 'memento', A, B, n_cores)
 }
-

@@ -24,11 +24,13 @@ Imports:
     magrittr,
     matrixcalc,
     methods,
+    Matrix,
     patchwork,
     phangorn,
     phytools,
     plyr,
     Rfast,
+    rgpumult,
     rlang,
     tidytree
 Suggests: 

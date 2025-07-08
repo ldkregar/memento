@@ -105,6 +105,7 @@ the$Q <- getQMatrix(the$df_rate)
 the$useQ <- FALSE
 the$use_ff <- FALSE
 the$use_Rfast <- FALSE
+the$use_rgpumult <- TRUE
 
 #' Report my default settings
 #'
@@ -126,6 +127,7 @@ memento_settings <- function() {
               "num_bases_in_genome" = the$num_bases_in_genome,
               "human.snv.rate.per.base" = the$human.snv.rate.per.base,
               "use_Rfast" = the$use_Rfast,
+              "use_rgpumult" = the$use_rgpumult,
               "full_tree_is_null" = is.null(the$full_tree),
               "global_edges_vector_sort_is_null" = is.null(the$global_edges_vector_sort),
               "subtree_sub_nodes_is_null" = is.null(the$global_tips_vector),
@@ -165,7 +167,8 @@ set_memento_settings <- function(new_number_of_states = NULL,
                                  new_tree_branch_is_snv = NULL,
                                  new_snv_rate_per_year = NULL,
                                  new_num_bases_in_genome = NULL,
-                                 new_use_Rfast = NULL){
+                                 new_use_Rfast = NULL,
+                                 new_use_rgpumult = NULL){
   old_num_states <- the$number_of_states
   if(!is.null(new_number_of_states)){
     the$number_of_states <- new_number_of_states
@@ -236,6 +239,9 @@ set_memento_settings <- function(new_number_of_states = NULL,
   }
   if(!is.null(new_use_Rfast)){
     the$use_Rfast <- new_use_Rfast
+  }
+  if(!is.null(new_use_rgpumult)){
+    the$use_rgpumult <- new_use_rgpumult
   }
   invisible(old_num_states)
 }

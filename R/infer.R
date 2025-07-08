@@ -44,6 +44,13 @@ compute_probabilities <- function(priors_per_tree,
                                   current_comb = NA,
                                   site_specific = TRUE,
                                   use_ff_fully = FALSE){
+  # select matrix multiply method
+  if (the$use_rgpumult) {
+    mm <- rgpumult::gpumult
+  }else{
+    mm <- eigenMapMatMult2
+  }
+
   chr_pos = branch = only_branch = starting_state = rank = n_assignments = Chrom = Pos = NULL
   if(length(priors_per_tree) == 1){
     only_one <- TRUE
@@ -134,24 +141,9 @@ compute_probabilities <- function(priors_per_tree,
                   dim(prep_gnt_tf[["3"]])[1], dim(prep_gnt_tf[["3"]])[2]))
     }
     if(length(a) == 1 & length(e) == 1 & length(c) == 1){
-      if(the$use_ff){
-        # p = (ff::as.ff(a*methcount + b*wtcount))[] %*% (ff::as.ff(prep_gnt_tf[["3"]]))[] +
-        #   (ff::as.ff(c*(methcount+wtcount)))[] %*% (ff::as.ff(prep_gnt_tf[["2"]]))[] +
-        #   (ff::as.ff((b*methcount+a*wtcount)))[] %*% (ff::as.ff(prep_gnt_tf[["1"]]))[]
-        #profvis({
-          p=methods::as((a*methcount + b*wtcount), "HDF5Matrix") %*% methods::as(prep_gnt_tf[["3"]], "HDF5Matrix") +
-            methods::as((c*methcount + d*wtcount), "HDF5Matrix") %*% methods::as(prep_gnt_tf[["2"]], "HDF5Matrix") +
-            methods::as((e*methcount + f*wtcount), "HDF5Matrix") %*% methods::as(prep_gnt_tf[["1"]], "HDF5Matrix")
-          #})
-      }else if(the$use_Rfast){
-        p=Rfast::mat.mult((a*methcount + b*wtcount), prep_gnt_tf[["3"]]) +
-          Rfast::mat.mult((c*methcount + d*wtcount), prep_gnt_tf[["2"]]) +
-          Rfast::mat.mult((e*methcount + f*wtcount), prep_gnt_tf[["1"]])
-      }else{
-        p=eigenMapMatMult2((a*methcount + b*wtcount), prep_gnt_tf[["3"]]) +
-          eigenMapMatMult2((c*methcount + d*wtcount), prep_gnt_tf[["2"]]) +
-          eigenMapMatMult2((e*methcount + f*wtcount), prep_gnt_tf[["1"]])
-      }
+      p=mm((a*methcount + b*wtcount), prep_gnt_tf[["3"]]) +
+        mm((c*methcount + d*wtcount), prep_gnt_tf[["2"]]) +
+        mm((e*methcount + f*wtcount), prep_gnt_tf[["1"]])
     }else{
       if(site_specific){
         if(length(a) > nrow(methcount)){
@@ -201,23 +193,9 @@ compute_probabilities <- function(priors_per_tree,
         tmp6 <- t(tmp6)
       }
 
-      if(the$use_ff){
-        # new_p <- (ff::as.ff(tmp1+tmp2))[] %*% (ff::as.ff(prep_gnt_tf[["3"]]))[] +
-        #   (ff::as.ff(tmp3))[] %*% (ff::as.ff(prep_gnt_tf[["2"]]))[] +
-        #   (ff::as.ff(tmp4 + tmp5))[] %*% (ff::as.ff(prep_gnt_tf[["1"]]))[]
-
-        new_p <- methods::as((tmp1+tmp2), "HDF5Matrix") %*% methods::as(prep_gnt_tf[["3"]], "HDF5Matrix") +
-          methods::as((tmp3+tmp4), "HDF5Matrix") %*% methods::as(prep_gnt_tf[["2"]], "HDF5Matrix") +
-          methods::as((tmp5 + tmp6), "HDF5Matrix") %*% methods::as(prep_gnt_tf[["1"]], "HDF5Matrix")
-      }else if(the$use_Rfast){
-        new_p <- Rfast::mat.mult((tmp1+tmp2), prep_gnt_tf[["3"]]) +
-          Rfast::mat.mult((tmp3+tmp4), prep_gnt_tf[["2"]]) +
-          Rfast::mat.mult((tmp5 + tmp6), prep_gnt_tf[["1"]])
-      }else{
-        new_p <- eigenMapMatMult2((tmp1+tmp2), prep_gnt_tf[["3"]]) +
-          eigenMapMatMult2((tmp3+tmp4), prep_gnt_tf[["2"]]) +
-          eigenMapMatMult2((tmp5 + tmp6), prep_gnt_tf[["1"]])
-      }
+      new_p <- mm((tmp1+tmp2), prep_gnt_tf[["3"]]) +
+        mm((tmp3+tmp4), prep_gnt_tf[["2"]]) +
+        mm((tmp5 + tmp6), prep_gnt_tf[["1"]])
       p <- new_p
       }
     }else if(the$number_of_states == 4){
@@ -348,33 +326,33 @@ compute_probabilities <- function(priors_per_tree,
         }
       }else{
         if(length(a) == 1 & length(b) == 1){
-          state1 <- eigenMapMatMult2(matrix_list[["MT_M"]], prep_gnt_tf[["4"]]) +
-            eigenMapMatMult2(matrix_list[["PT_M"]], prep_gnt_tf[["4"]]) +
-            eigenMapMatMult2(matrix_list[["U_M"]], prep_gnt_tf[["4"]]) +
-            eigenMapMatMult2(matrix_list[["MT_U"]], prep_gnt_tf[["2"]]) +
-            eigenMapMatMult2(matrix_list[["PT_M"]], prep_gnt_tf[["2"]]) +
-            eigenMapMatMult2(matrix_list[["PT_U"]], prep_gnt_tf[["3"]]) +
-            eigenMapMatMult2(matrix_list[["MT_M"]], prep_gnt_tf[["3"]]) +
-            eigenMapMatMult2(matrix_list[["MT_U"]], prep_gnt_tf[["1"]]) +
-            eigenMapMatMult2(matrix_list[["PT_U"]], prep_gnt_tf[["1"]]) +
-            eigenMapMatMult2(matrix_list[["U_U"]], prep_gnt_tf[["1"]])
+          state1 <- mm(matrix_list[["MT_M"]], prep_gnt_tf[["4"]]) +
+            mm(matrix_list[["PT_M"]], prep_gnt_tf[["4"]]) +
+            mm(matrix_list[["U_M"]], prep_gnt_tf[["4"]]) +
+            mm(matrix_list[["MT_U"]], prep_gnt_tf[["2"]]) +
+            mm(matrix_list[["PT_M"]], prep_gnt_tf[["2"]]) +
+            mm(matrix_list[["PT_U"]], prep_gnt_tf[["3"]]) +
+            mm(matrix_list[["MT_M"]], prep_gnt_tf[["3"]]) +
+            mm(matrix_list[["MT_U"]], prep_gnt_tf[["1"]]) +
+            mm(matrix_list[["PT_U"]], prep_gnt_tf[["1"]]) +
+            mm(matrix_list[["U_U"]], prep_gnt_tf[["1"]])
 
-          state2 <- eigenMapMatMult2(matrix_list[["MT_U"]], prep_gnt_tf[["4"]]) +
-            eigenMapMatMult2(matrix_list[["PT_U"]], prep_gnt_tf[["4"]]) +
-            eigenMapMatMult2(matrix_list[["U_U"]], prep_gnt_tf[["4"]]) +
-            eigenMapMatMult2(matrix_list[["MT_M"]], prep_gnt_tf[["2"]]) +
-            eigenMapMatMult2(matrix_list[["PT_U"]], prep_gnt_tf[["2"]]) +
-            eigenMapMatMult2(matrix_list[["PT_M"]], prep_gnt_tf[["3"]]) +
-            eigenMapMatMult2(matrix_list[["MT_U"]], prep_gnt_tf[["3"]]) +
-            eigenMapMatMult2(matrix_list[["PT_M"]], prep_gnt_tf[["1"]]) +
-            eigenMapMatMult2(matrix_list[["MT_M"]], prep_gnt_tf[["1"]]) +
-            eigenMapMatMult2(matrix_list[["U_M"]], prep_gnt_tf[["1"]])
+          state2 <- mm(matrix_list[["MT_U"]], prep_gnt_tf[["4"]]) +
+            mm(matrix_list[["PT_U"]], prep_gnt_tf[["4"]]) +
+            mm(matrix_list[["U_U"]], prep_gnt_tf[["4"]]) +
+            mm(matrix_list[["MT_M"]], prep_gnt_tf[["2"]]) +
+            mm(matrix_list[["PT_U"]], prep_gnt_tf[["2"]]) +
+            mm(matrix_list[["PT_M"]], prep_gnt_tf[["3"]]) +
+            mm(matrix_list[["MT_U"]], prep_gnt_tf[["3"]]) +
+            mm(matrix_list[["PT_M"]], prep_gnt_tf[["1"]]) +
+            mm(matrix_list[["MT_M"]], prep_gnt_tf[["1"]]) +
+            mm(matrix_list[["U_M"]], prep_gnt_tf[["1"]])
 
-          state3 <- eigenMapMatMult2(matrix_list[["U_M"]], prep_gnt_tf[["2"]]) +
-            eigenMapMatMult2(matrix_list[["U_U"]], prep_gnt_tf[["2"]]) +
+          state3 <- mm(matrix_list[["U_M"]], prep_gnt_tf[["2"]]) +
+            mm(matrix_list[["U_U"]], prep_gnt_tf[["2"]]) +
 
-            eigenMapMatMult2(matrix_list[["U_M"]], prep_gnt_tf[["3"]]) +
-            eigenMapMatMult2(matrix_list[["U_U"]], prep_gnt_tf[["3"]])
+            mm(matrix_list[["U_M"]], prep_gnt_tf[["3"]]) +
+            mm(matrix_list[["U_U"]], prep_gnt_tf[["3"]])
 
           p <- state1 * a + state2 * b + state3 * c
         }else{
@@ -410,61 +388,61 @@ compute_probabilities <- function(priors_per_tree,
           c_vec <- rep(c, ncol(matrix_list[[1]]))
           # sweep(methcount, 2, a, "*")
           if(site_specific){
-            state1 <- eigenMapMatMult2(t(Rfast::eachrow(matrix_list[["MT_M"]], a, "*")), prep_gnt_tf[["4"]]) +
-              eigenMapMatMult2(t(Rfast::eachrow(matrix_list[["PT_M"]], a, "*")), prep_gnt_tf[["4"]]) +
-              eigenMapMatMult2(t(Rfast::eachrow(matrix_list[["U_M"]], a, "*")), prep_gnt_tf[["4"]]) +
-              eigenMapMatMult2(t(Rfast::eachrow(matrix_list[["MT_U"]], a, "*")), prep_gnt_tf[["2"]]) +
-              eigenMapMatMult2(t(Rfast::eachrow(matrix_list[["PT_M"]], a, "*")), prep_gnt_tf[["2"]]) +
-              eigenMapMatMult2(t(Rfast::eachrow(matrix_list[["PT_U"]], a, "*")), prep_gnt_tf[["3"]]) +
-              eigenMapMatMult2(t(Rfast::eachrow(matrix_list[["MT_M"]], a, "*")), prep_gnt_tf[["3"]]) +
-              eigenMapMatMult2(t(Rfast::eachrow(matrix_list[["MT_U"]], a, "*")), prep_gnt_tf[["1"]]) +
-              eigenMapMatMult2(t(Rfast::eachrow(matrix_list[["PT_U"]], a, "*")), prep_gnt_tf[["1"]]) +
-              eigenMapMatMult2(t(Rfast::eachrow(matrix_list[["U_U"]], a, "*")), prep_gnt_tf[["1"]])
+            state1 <- mm(t(Rfast::eachrow(matrix_list[["MT_M"]], a, "*")), prep_gnt_tf[["4"]]) +
+              mm(t(Rfast::eachrow(matrix_list[["PT_M"]], a, "*")), prep_gnt_tf[["4"]]) +
+              mm(t(Rfast::eachrow(matrix_list[["U_M"]], a, "*")), prep_gnt_tf[["4"]]) +
+              mm(t(Rfast::eachrow(matrix_list[["MT_U"]], a, "*")), prep_gnt_tf[["2"]]) +
+              mm(t(Rfast::eachrow(matrix_list[["PT_M"]], a, "*")), prep_gnt_tf[["2"]]) +
+              mm(t(Rfast::eachrow(matrix_list[["PT_U"]], a, "*")), prep_gnt_tf[["3"]]) +
+              mm(t(Rfast::eachrow(matrix_list[["MT_M"]], a, "*")), prep_gnt_tf[["3"]]) +
+              mm(t(Rfast::eachrow(matrix_list[["MT_U"]], a, "*")), prep_gnt_tf[["1"]]) +
+              mm(t(Rfast::eachrow(matrix_list[["PT_U"]], a, "*")), prep_gnt_tf[["1"]]) +
+              mm(t(Rfast::eachrow(matrix_list[["U_U"]], a, "*")), prep_gnt_tf[["1"]])
 
-            state2 <- eigenMapMatMult2(t(Rfast::eachrow(matrix_list[["MT_U"]], b, "*")), prep_gnt_tf[["4"]]) +
-              eigenMapMatMult2(t(Rfast::eachrow(matrix_list[["PT_U"]], b, "*")), prep_gnt_tf[["4"]]) +
-              eigenMapMatMult2(t(Rfast::eachrow(matrix_list[["U_U"]], b, "*")), prep_gnt_tf[["4"]]) +
-              eigenMapMatMult2(t(Rfast::eachrow(matrix_list[["MT_M"]], b, "*")), prep_gnt_tf[["2"]]) +
-              eigenMapMatMult2(t(Rfast::eachrow(matrix_list[["PT_U"]], b, "*")), prep_gnt_tf[["2"]]) +
-              eigenMapMatMult2(t(Rfast::eachrow(matrix_list[["PT_M"]], b, "*")), prep_gnt_tf[["3"]]) +
-              eigenMapMatMult2(t(Rfast::eachrow(matrix_list[["MT_U"]], b, "*")), prep_gnt_tf[["3"]]) +
-              eigenMapMatMult2(t(Rfast::eachrow(matrix_list[["PT_M"]], b, "*")), prep_gnt_tf[["1"]]) +
-              eigenMapMatMult2(t(Rfast::eachrow(matrix_list[["MT_M"]], b, "*")), prep_gnt_tf[["1"]]) +
-              eigenMapMatMult2(t(Rfast::eachrow(matrix_list[["U_M"]], b, "*")), prep_gnt_tf[["1"]])
+            state2 <- mm(t(Rfast::eachrow(matrix_list[["MT_U"]], b, "*")), prep_gnt_tf[["4"]]) +
+              mm(t(Rfast::eachrow(matrix_list[["PT_U"]], b, "*")), prep_gnt_tf[["4"]]) +
+              mm(t(Rfast::eachrow(matrix_list[["U_U"]], b, "*")), prep_gnt_tf[["4"]]) +
+              mm(t(Rfast::eachrow(matrix_list[["MT_M"]], b, "*")), prep_gnt_tf[["2"]]) +
+              mm(t(Rfast::eachrow(matrix_list[["PT_U"]], b, "*")), prep_gnt_tf[["2"]]) +
+              mm(t(Rfast::eachrow(matrix_list[["PT_M"]], b, "*")), prep_gnt_tf[["3"]]) +
+              mm(t(Rfast::eachrow(matrix_list[["MT_U"]], b, "*")), prep_gnt_tf[["3"]]) +
+              mm(t(Rfast::eachrow(matrix_list[["PT_M"]], b, "*")), prep_gnt_tf[["1"]]) +
+              mm(t(Rfast::eachrow(matrix_list[["MT_M"]], b, "*")), prep_gnt_tf[["1"]]) +
+              mm(t(Rfast::eachrow(matrix_list[["U_M"]], b, "*")), prep_gnt_tf[["1"]])
 
-            state3 <- eigenMapMatMult2(t(Rfast::eachrow(matrix_list[["U_M"]], c_vec, "*")), prep_gnt_tf[["2"]]) +
-              eigenMapMatMult2(t(Rfast::eachrow(matrix_list[["U_U"]], c_vec, "*")), prep_gnt_tf[["2"]]) +
+            state3 <- mm(t(Rfast::eachrow(matrix_list[["U_M"]], c_vec, "*")), prep_gnt_tf[["2"]]) +
+              mm(t(Rfast::eachrow(matrix_list[["U_U"]], c_vec, "*")), prep_gnt_tf[["2"]]) +
 
-              eigenMapMatMult2(t(Rfast::eachrow(matrix_list[["U_M"]], c_vec, "*")), prep_gnt_tf[["3"]]) +
-              eigenMapMatMult2(t(Rfast::eachrow(matrix_list[["U_U"]], c_vec, "*")), prep_gnt_tf[["3"]])
+              mm(t(Rfast::eachrow(matrix_list[["U_M"]], c_vec, "*")), prep_gnt_tf[["3"]]) +
+              mm(t(Rfast::eachrow(matrix_list[["U_U"]], c_vec, "*")), prep_gnt_tf[["3"]])
           }else{
-            state1 <- eigenMapMatMult2(Rfast::eachrow(matrix_list[["MT_M"]], a, "*"), prep_gnt_tf[["4"]]) +
-              eigenMapMatMult2(Rfast::eachrow(matrix_list[["PT_M"]], a, "*"), prep_gnt_tf[["4"]]) +
-              eigenMapMatMult2(Rfast::eachrow(matrix_list[["U_M"]], a, "*"), prep_gnt_tf[["4"]]) +
-              eigenMapMatMult2(Rfast::eachrow(matrix_list[["MT_U"]], a, "*"), prep_gnt_tf[["2"]]) +
-              eigenMapMatMult2(Rfast::eachrow(matrix_list[["PT_M"]], a, "*"), prep_gnt_tf[["2"]]) +
-              eigenMapMatMult2(Rfast::eachrow(matrix_list[["PT_U"]], a, "*"), prep_gnt_tf[["3"]]) +
-              eigenMapMatMult2(Rfast::eachrow(matrix_list[["MT_M"]], a, "*"), prep_gnt_tf[["3"]]) +
-              eigenMapMatMult2(Rfast::eachrow(matrix_list[["MT_U"]], a, "*"), prep_gnt_tf[["1"]]) +
-              eigenMapMatMult2(Rfast::eachrow(matrix_list[["PT_U"]], a, "*"), prep_gnt_tf[["1"]]) +
-              eigenMapMatMult2(Rfast::eachrow(matrix_list[["U_U"]], a, "*"), prep_gnt_tf[["1"]])
+            state1 <- mm(Rfast::eachrow(matrix_list[["MT_M"]], a, "*"), prep_gnt_tf[["4"]]) +
+              mm(Rfast::eachrow(matrix_list[["PT_M"]], a, "*"), prep_gnt_tf[["4"]]) +
+              mm(Rfast::eachrow(matrix_list[["U_M"]], a, "*"), prep_gnt_tf[["4"]]) +
+              mm(Rfast::eachrow(matrix_list[["MT_U"]], a, "*"), prep_gnt_tf[["2"]]) +
+              mm(Rfast::eachrow(matrix_list[["PT_M"]], a, "*"), prep_gnt_tf[["2"]]) +
+              mm(Rfast::eachrow(matrix_list[["PT_U"]], a, "*"), prep_gnt_tf[["3"]]) +
+              mm(Rfast::eachrow(matrix_list[["MT_M"]], a, "*"), prep_gnt_tf[["3"]]) +
+              mm(Rfast::eachrow(matrix_list[["MT_U"]], a, "*"), prep_gnt_tf[["1"]]) +
+              mm(Rfast::eachrow(matrix_list[["PT_U"]], a, "*"), prep_gnt_tf[["1"]]) +
+              mm(Rfast::eachrow(matrix_list[["U_U"]], a, "*"), prep_gnt_tf[["1"]])
 
-            state2 <- eigenMapMatMult2(Rfast::eachrow(matrix_list[["MT_U"]], b, "*"), prep_gnt_tf[["4"]]) +
-              eigenMapMatMult2(Rfast::eachrow(matrix_list[["PT_U"]], b, "*"), prep_gnt_tf[["4"]]) +
-              eigenMapMatMult2(Rfast::eachrow(matrix_list[["U_U"]], b, "*"), prep_gnt_tf[["4"]]) +
-              eigenMapMatMult2(Rfast::eachrow(matrix_list[["MT_M"]], b, "*"), prep_gnt_tf[["2"]]) +
-              eigenMapMatMult2(Rfast::eachrow(matrix_list[["PT_U"]], b, "*"), prep_gnt_tf[["2"]]) +
-              eigenMapMatMult2(Rfast::eachrow(matrix_list[["PT_M"]], b, "*"), prep_gnt_tf[["3"]]) +
-              eigenMapMatMult2(Rfast::eachrow(matrix_list[["MT_U"]], b, "*"), prep_gnt_tf[["3"]]) +
-              eigenMapMatMult2(Rfast::eachrow(matrix_list[["PT_M"]], b, "*"), prep_gnt_tf[["1"]]) +
-              eigenMapMatMult2(Rfast::eachrow(matrix_list[["MT_M"]], b, "*"), prep_gnt_tf[["1"]]) +
-              eigenMapMatMult2(Rfast::eachrow(matrix_list[["U_M"]], b, "*"), prep_gnt_tf[["1"]])
+            state2 <- mm(Rfast::eachrow(matrix_list[["MT_U"]], b, "*"), prep_gnt_tf[["4"]]) +
+              mm(Rfast::eachrow(matrix_list[["PT_U"]], b, "*"), prep_gnt_tf[["4"]]) +
+              mm(Rfast::eachrow(matrix_list[["U_U"]], b, "*"), prep_gnt_tf[["4"]]) +
+              mm(Rfast::eachrow(matrix_list[["MT_M"]], b, "*"), prep_gnt_tf[["2"]]) +
+              mm(Rfast::eachrow(matrix_list[["PT_U"]], b, "*"), prep_gnt_tf[["2"]]) +
+              mm(Rfast::eachrow(matrix_list[["PT_M"]], b, "*"), prep_gnt_tf[["3"]]) +
+              mm(Rfast::eachrow(matrix_list[["MT_U"]], b, "*"), prep_gnt_tf[["3"]]) +
+              mm(Rfast::eachrow(matrix_list[["PT_M"]], b, "*"), prep_gnt_tf[["1"]]) +
+              mm(Rfast::eachrow(matrix_list[["MT_M"]], b, "*"), prep_gnt_tf[["1"]]) +
+              mm(Rfast::eachrow(matrix_list[["U_M"]], b, "*"), prep_gnt_tf[["1"]])
 
-            state3 <- eigenMapMatMult2(Rfast::eachrow(matrix_list[["U_M"]], c_vec, "*"), prep_gnt_tf[["2"]]) +
-              eigenMapMatMult2(Rfast::eachrow(matrix_list[["U_U"]], c_vec, "*"), prep_gnt_tf[["2"]]) +
+            state3 <- mm(Rfast::eachrow(matrix_list[["U_M"]], c_vec, "*"), prep_gnt_tf[["2"]]) +
+              mm(Rfast::eachrow(matrix_list[["U_U"]], c_vec, "*"), prep_gnt_tf[["2"]]) +
 
-              eigenMapMatMult2(Rfast::eachrow(matrix_list[["U_M"]], c_vec, "*"), prep_gnt_tf[["3"]]) +
-              eigenMapMatMult2(Rfast::eachrow(matrix_list[["U_U"]], c_vec, "*"), prep_gnt_tf[["3"]])
+              mm(Rfast::eachrow(matrix_list[["U_M"]], c_vec, "*"), prep_gnt_tf[["3"]]) +
+              mm(Rfast::eachrow(matrix_list[["U_U"]], c_vec, "*"), prep_gnt_tf[["3"]])
           }
 
           p <- state1 + state2 + state3
@@ -562,8 +540,8 @@ compute_probabilities <- function(priors_per_tree,
 
         }else{
           if(length(a) == 1 & length(b) == 1){
-            p = eigenMapMatMult2((a*methcount + b*wtcount), prep_gnt_tf[["2"]]) +
-              eigenMapMatMult2((b*methcount + a*wtcount), prep_gnt_tf[["1"]])
+            p = mm((a*methcount + b*wtcount), prep_gnt_tf[["2"]]) +
+              mm((b*methcount + a*wtcount), prep_gnt_tf[["1"]])
           }else{
             if(site_specific){
               if(length(a) > nrow(methcount)){
@@ -593,11 +571,11 @@ compute_probabilities <- function(priors_per_tree,
               }
             }
             if(site_specific){
-              p_new <- eigenMapMatMult2(t((Rfast::eachrow(methcount, a, "*") + Rfast::eachrow(wtcount, b, "*"))), prep_gnt_tf[["2"]]) +
-                eigenMapMatMult2(t((Rfast::eachrow(methcount, b, "*")+Rfast::eachrow(wtcount, a, "*"))), prep_gnt_tf[["1"]])
+              p_new <- mm(t((Rfast::eachrow(methcount, a, "*") + Rfast::eachrow(wtcount, b, "*"))), prep_gnt_tf[["2"]]) +
+                mm(t((Rfast::eachrow(methcount, b, "*")+Rfast::eachrow(wtcount, a, "*"))), prep_gnt_tf[["1"]])
             }else{
-              p_new <- eigenMapMatMult2((Rfast::eachrow(methcount, a, "*") + Rfast::eachrow(wtcount, b, "*")), prep_gnt_tf[["2"]]) +
-                eigenMapMatMult2((Rfast::eachrow(methcount, b, "*")+Rfast::eachrow(wtcount, a, "*")), prep_gnt_tf[["1"]])
+              p_new <- mm((Rfast::eachrow(methcount, a, "*") + Rfast::eachrow(wtcount, b, "*")), prep_gnt_tf[["2"]]) +
+                mm((Rfast::eachrow(methcount, b, "*")+Rfast::eachrow(wtcount, a, "*")), prep_gnt_tf[["1"]])
             }
             p <- p_new
             }
@@ -798,6 +776,7 @@ compute_probabilities <- function(priors_per_tree,
 #'   test <- compute_probabilities3(priors_per_tree = result,
 #'   m_reads_matrix = m_mtx, u_reads_matrix = u_mtx, ro = 0.95)
 #' }
+#' 
 estimate_likelihoods <- function(genotype_vectors,
                                  m_reads_matrix=NULL,
                                  u_reads_matrix = NULL,
@@ -807,6 +786,13 @@ estimate_likelihoods <- function(genotype_vectors,
                                  delta = NA,
                                  site_specific = TRUE,
                                  node_is_real_tip = NULL){
+  # select matrix multiply method
+  if (the$use_rgpumult) {
+    mm <- rgpumult::gpumult
+  }else{
+    mm <- eigenMapMatMult2
+  }
+  
   use_sweep <- TRUE
   # new gnt column names
   current_col_names <- lapply(genotype_vectors, function(g){
@@ -872,35 +858,35 @@ estimate_likelihoods <- function(genotype_vectors,
       tmp6 <- f*wtcount
 
     }else if(the$number_of_states == 4){
-      tmp1 <- eigenMapMatMult2(matrix_list[["MT_M"]], prep_gnt_tf[["4"]]) +
-        eigenMapMatMult2(matrix_list[["PT_M"]], prep_gnt_tf[["4"]]) +
-        eigenMapMatMult2(matrix_list[["U_M"]], prep_gnt_tf[["4"]]) +
-        eigenMapMatMult2(matrix_list[["PT_M"]], prep_gnt_tf[["2"]]) +
-        eigenMapMatMult2(matrix_list[["MT_M"]], prep_gnt_tf[["3"]])
+      tmp1 <- mm(matrix_list[["MT_M"]], prep_gnt_tf[["4"]]) +
+        mm(matrix_list[["PT_M"]], prep_gnt_tf[["4"]]) +
+        mm(matrix_list[["U_M"]], prep_gnt_tf[["4"]]) +
+        mm(matrix_list[["PT_M"]], prep_gnt_tf[["2"]]) +
+        mm(matrix_list[["MT_M"]], prep_gnt_tf[["3"]])
 
-      tmp2 <- eigenMapMatMult2(matrix_list[["MT_U"]], prep_gnt_tf[["4"]]) +
-        eigenMapMatMult2(matrix_list[["PT_U"]], prep_gnt_tf[["4"]]) +
-        eigenMapMatMult2(matrix_list[["U_U"]], prep_gnt_tf[["4"]]) +
-        eigenMapMatMult2(matrix_list[["PT_U"]], prep_gnt_tf[["2"]]) +
-        eigenMapMatMult2(matrix_list[["MT_U"]], prep_gnt_tf[["3"]])
+      tmp2 <- mm(matrix_list[["MT_U"]], prep_gnt_tf[["4"]]) +
+        mm(matrix_list[["PT_U"]], prep_gnt_tf[["4"]]) +
+        mm(matrix_list[["U_U"]], prep_gnt_tf[["4"]]) +
+        mm(matrix_list[["PT_U"]], prep_gnt_tf[["2"]]) +
+        mm(matrix_list[["MT_U"]], prep_gnt_tf[["3"]])
 
-      tmp3 <- eigenMapMatMult2(matrix_list[["U_M"]], prep_gnt_tf[["2"]]) +
-        eigenMapMatMult2(matrix_list[["U_M"]], prep_gnt_tf[["3"]])
+      tmp3 <- mm(matrix_list[["U_M"]], prep_gnt_tf[["2"]]) +
+        mm(matrix_list[["U_M"]], prep_gnt_tf[["3"]])
 
-      tmp4 <- eigenMapMatMult2(matrix_list[["U_U"]], prep_gnt_tf[["2"]]) +
-        eigenMapMatMult2(matrix_list[["U_U"]], prep_gnt_tf[["3"]])
+      tmp4 <- mm(matrix_list[["U_U"]], prep_gnt_tf[["2"]]) +
+        mm(matrix_list[["U_U"]], prep_gnt_tf[["3"]])
 
-      tmp5 <- eigenMapMatMult2(matrix_list[["MT_M"]], prep_gnt_tf[["2"]]) +
-        eigenMapMatMult2(matrix_list[["PT_M"]], prep_gnt_tf[["3"]]) +
-        eigenMapMatMult2(matrix_list[["PT_M"]], prep_gnt_tf[["1"]]) +
-        eigenMapMatMult2(matrix_list[["MT_M"]], prep_gnt_tf[["1"]]) +
-        eigenMapMatMult2(matrix_list[["U_M"]], prep_gnt_tf[["1"]])
+      tmp5 <- mm(matrix_list[["MT_M"]], prep_gnt_tf[["2"]]) +
+        mm(matrix_list[["PT_M"]], prep_gnt_tf[["3"]]) +
+        mm(matrix_list[["PT_M"]], prep_gnt_tf[["1"]]) +
+        mm(matrix_list[["MT_M"]], prep_gnt_tf[["1"]]) +
+        mm(matrix_list[["U_M"]], prep_gnt_tf[["1"]])
 
-      tmp6 <- eigenMapMatMult2(matrix_list[["MT_U"]], prep_gnt_tf[["2"]]) +
-        eigenMapMatMult2(matrix_list[["PT_U"]], prep_gnt_tf[["3"]]) +
-        eigenMapMatMult2(matrix_list[["MT_U"]], prep_gnt_tf[["1"]]) +
-        eigenMapMatMult2(matrix_list[["PT_U"]], prep_gnt_tf[["1"]]) +
-        eigenMapMatMult2(matrix_list[["U_U"]], prep_gnt_tf[["1"]])
+      tmp6 <- mm(matrix_list[["MT_U"]], prep_gnt_tf[["2"]]) +
+        mm(matrix_list[["PT_U"]], prep_gnt_tf[["3"]]) +
+        mm(matrix_list[["MT_U"]], prep_gnt_tf[["1"]]) +
+        mm(matrix_list[["PT_U"]], prep_gnt_tf[["1"]]) +
+        mm(matrix_list[["U_U"]], prep_gnt_tf[["1"]])
 
       p_new <- tmp1*a + tmp2*b + tmp3*c + tmp4*d + tmp5*e + tmp6*f
     } # end of n_states == 4
@@ -977,127 +963,127 @@ estimate_likelihoods <- function(genotype_vectors,
     }else{ # the$number_of_states > 4
       if(site_specific){
         if(use_sweep){
-          tmp1 <- eigenMapMatMult2(sweep(matrix_list[["MT_M"]], MARGIN = 1, a, "*"), prep_gnt_tf[["4"]]) +
-            eigenMapMatMult2(sweep(matrix_list[["PT_M"]], MARGIN = 1, a, "*"), prep_gnt_tf[["4"]]) +
-            eigenMapMatMult2(sweep(matrix_list[["U_M"]], MARGIN = 1, a, "*"), prep_gnt_tf[["4"]]) +
-            eigenMapMatMult2(sweep(matrix_list[["PT_M"]], MARGIN = 1, a, "*"), prep_gnt_tf[["2"]]) +
-            eigenMapMatMult2(sweep(matrix_list[["MT_M"]], MARGIN = 1, a, "*"), prep_gnt_tf[["3"]])
+          tmp1 <- mm(sweep(matrix_list[["MT_M"]], MARGIN = 1, a, "*"), prep_gnt_tf[["4"]]) +
+            mm(sweep(matrix_list[["PT_M"]], MARGIN = 1, a, "*"), prep_gnt_tf[["4"]]) +
+            mm(sweep(matrix_list[["U_M"]], MARGIN = 1, a, "*"), prep_gnt_tf[["4"]]) +
+            mm(sweep(matrix_list[["PT_M"]], MARGIN = 1, a, "*"), prep_gnt_tf[["2"]]) +
+            mm(sweep(matrix_list[["MT_M"]], MARGIN = 1, a, "*"), prep_gnt_tf[["3"]])
 
-          tmp2 <- eigenMapMatMult2(sweep(matrix_list[["MT_U"]], MARGIN = 1, b, "*"), prep_gnt_tf[["4"]]) +
-            eigenMapMatMult2(sweep(matrix_list[["PT_U"]], MARGIN = 1, b, "*"), prep_gnt_tf[["4"]]) +
-            eigenMapMatMult2(sweep(matrix_list[["U_U"]], MARGIN = 1, b, "*"), prep_gnt_tf[["4"]]) +
-            eigenMapMatMult2(sweep(matrix_list[["PT_U"]], MARGIN = 1, b, "*"), prep_gnt_tf[["2"]]) +
-            eigenMapMatMult2(sweep(matrix_list[["MT_U"]], MARGIN = 1, b, "*"), prep_gnt_tf[["3"]])
+          tmp2 <- mm(sweep(matrix_list[["MT_U"]], MARGIN = 1, b, "*"), prep_gnt_tf[["4"]]) +
+            mm(sweep(matrix_list[["PT_U"]], MARGIN = 1, b, "*"), prep_gnt_tf[["4"]]) +
+            mm(sweep(matrix_list[["U_U"]], MARGIN = 1, b, "*"), prep_gnt_tf[["4"]]) +
+            mm(sweep(matrix_list[["PT_U"]], MARGIN = 1, b, "*"), prep_gnt_tf[["2"]]) +
+            mm(sweep(matrix_list[["MT_U"]], MARGIN = 1, b, "*"), prep_gnt_tf[["3"]])
 
-          tmp3 <- eigenMapMatMult2(sweep(matrix_list[["U_M"]], MARGIN = 1, c, "*"), prep_gnt_tf[["2"]]) +
-            eigenMapMatMult2(sweep(matrix_list[["U_M"]], MARGIN = 1, c, "*"), prep_gnt_tf[["3"]])
+          tmp3 <- mm(sweep(matrix_list[["U_M"]], MARGIN = 1, c, "*"), prep_gnt_tf[["2"]]) +
+            mm(sweep(matrix_list[["U_M"]], MARGIN = 1, c, "*"), prep_gnt_tf[["3"]])
 
-          tmp4 <- eigenMapMatMult2(sweep(matrix_list[["U_U"]], MARGIN = 1, d, "*"), prep_gnt_tf[["2"]]) +
-            eigenMapMatMult2(sweep(matrix_list[["U_U"]], MARGIN = 1, d, "*"), prep_gnt_tf[["3"]])
+          tmp4 <- mm(sweep(matrix_list[["U_U"]], MARGIN = 1, d, "*"), prep_gnt_tf[["2"]]) +
+            mm(sweep(matrix_list[["U_U"]], MARGIN = 1, d, "*"), prep_gnt_tf[["3"]])
 
-          tmp5 <- eigenMapMatMult2(sweep(matrix_list[["MT_M"]], MARGIN = 1, e, "*"), prep_gnt_tf[["2"]]) +
-            eigenMapMatMult2(sweep(matrix_list[["PT_M"]], MARGIN = 1, e, "*"), prep_gnt_tf[["3"]]) +
-            eigenMapMatMult2(sweep(matrix_list[["PT_M"]], MARGIN = 1, e, "*"), prep_gnt_tf[["1"]]) +
-            eigenMapMatMult2(sweep(matrix_list[["MT_M"]], MARGIN = 1, e, "*"), prep_gnt_tf[["1"]]) +
-            eigenMapMatMult2(sweep(matrix_list[["U_M"]], MARGIN = 1, e, "*"), prep_gnt_tf[["1"]])
+          tmp5 <- mm(sweep(matrix_list[["MT_M"]], MARGIN = 1, e, "*"), prep_gnt_tf[["2"]]) +
+            mm(sweep(matrix_list[["PT_M"]], MARGIN = 1, e, "*"), prep_gnt_tf[["3"]]) +
+            mm(sweep(matrix_list[["PT_M"]], MARGIN = 1, e, "*"), prep_gnt_tf[["1"]]) +
+            mm(sweep(matrix_list[["MT_M"]], MARGIN = 1, e, "*"), prep_gnt_tf[["1"]]) +
+            mm(sweep(matrix_list[["U_M"]], MARGIN = 1, e, "*"), prep_gnt_tf[["1"]])
 
-          tmp6 <- eigenMapMatMult2(sweep(matrix_list[["MT_U"]], MARGIN = 1, f, "*"), prep_gnt_tf[["2"]]) +
-            eigenMapMatMult2(sweep(matrix_list[["PT_U"]], MARGIN = 1, f, "*"), prep_gnt_tf[["3"]]) +
-            eigenMapMatMult2(sweep(matrix_list[["MT_U"]], MARGIN = 1, f, "*"), prep_gnt_tf[["1"]]) +
-            eigenMapMatMult2(sweep(matrix_list[["PT_U"]], MARGIN = 1, f, "*"), prep_gnt_tf[["1"]]) +
-            eigenMapMatMult2(sweep(matrix_list[["U_U"]], MARGIN = 1, f, "*"), prep_gnt_tf[["1"]])
+          tmp6 <- mm(sweep(matrix_list[["MT_U"]], MARGIN = 1, f, "*"), prep_gnt_tf[["2"]]) +
+            mm(sweep(matrix_list[["PT_U"]], MARGIN = 1, f, "*"), prep_gnt_tf[["3"]]) +
+            mm(sweep(matrix_list[["MT_U"]], MARGIN = 1, f, "*"), prep_gnt_tf[["1"]]) +
+            mm(sweep(matrix_list[["PT_U"]], MARGIN = 1, f, "*"), prep_gnt_tf[["1"]]) +
+            mm(sweep(matrix_list[["U_U"]], MARGIN = 1, f, "*"), prep_gnt_tf[["1"]])
         }else{
-          tmp1 <- eigenMapMatMult2(Rfast::eachrow(matrix_list[["MT_M"]], a, "*"), prep_gnt_tf[["4"]]) +
-            eigenMapMatMult2(Rfast::eachrow(matrix_list[["PT_M"]], a, "*"), prep_gnt_tf[["4"]]) +
-            eigenMapMatMult2(Rfast::eachrow(matrix_list[["U_M"]], a, "*"), prep_gnt_tf[["4"]]) +
-            eigenMapMatMult2(Rfast::eachrow(matrix_list[["PT_M"]], a, "*"), prep_gnt_tf[["2"]]) +
-            eigenMapMatMult2(Rfast::eachrow(matrix_list[["MT_M"]], a, "*"), prep_gnt_tf[["3"]])
+          tmp1 <- mm(Rfast::eachrow(matrix_list[["MT_M"]], a, "*"), prep_gnt_tf[["4"]]) +
+            mm(Rfast::eachrow(matrix_list[["PT_M"]], a, "*"), prep_gnt_tf[["4"]]) +
+            mm(Rfast::eachrow(matrix_list[["U_M"]], a, "*"), prep_gnt_tf[["4"]]) +
+            mm(Rfast::eachrow(matrix_list[["PT_M"]], a, "*"), prep_gnt_tf[["2"]]) +
+            mm(Rfast::eachrow(matrix_list[["MT_M"]], a, "*"), prep_gnt_tf[["3"]])
 
-        tmp2 <- eigenMapMatMult2(Rfast::eachrow(matrix_list[["MT_U"]], b, "*"), prep_gnt_tf[["4"]]) +
-          eigenMapMatMult2(Rfast::eachrow(matrix_list[["PT_U"]], b, "*"), prep_gnt_tf[["4"]]) +
-          eigenMapMatMult2(Rfast::eachrow(matrix_list[["U_U"]], b, "*"), prep_gnt_tf[["4"]]) +
-          eigenMapMatMult2(Rfast::eachrow(matrix_list[["PT_U"]], b, "*"), prep_gnt_tf[["2"]]) +
-          eigenMapMatMult2(Rfast::eachrow(matrix_list[["MT_U"]], b, "*"), prep_gnt_tf[["3"]])
+        tmp2 <- mm(Rfast::eachrow(matrix_list[["MT_U"]], b, "*"), prep_gnt_tf[["4"]]) +
+          mm(Rfast::eachrow(matrix_list[["PT_U"]], b, "*"), prep_gnt_tf[["4"]]) +
+          mm(Rfast::eachrow(matrix_list[["U_U"]], b, "*"), prep_gnt_tf[["4"]]) +
+          mm(Rfast::eachrow(matrix_list[["PT_U"]], b, "*"), prep_gnt_tf[["2"]]) +
+          mm(Rfast::eachrow(matrix_list[["MT_U"]], b, "*"), prep_gnt_tf[["3"]])
 
-        tmp3 <- eigenMapMatMult2(Rfast::eachrow(matrix_list[["U_M"]], c, "*"), prep_gnt_tf[["2"]]) +
-          eigenMapMatMult2(Rfast::eachrow(matrix_list[["U_M"]], c, "*"), prep_gnt_tf[["3"]])
+        tmp3 <- mm(Rfast::eachrow(matrix_list[["U_M"]], c, "*"), prep_gnt_tf[["2"]]) +
+          mm(Rfast::eachrow(matrix_list[["U_M"]], c, "*"), prep_gnt_tf[["3"]])
 
-        tmp4 <- eigenMapMatMult2(Rfast::eachrow(matrix_list[["U_U"]], d, "*"), prep_gnt_tf[["2"]]) +
-          eigenMapMatMult2(Rfast::eachrow(matrix_list[["U_U"]], d, "*"), prep_gnt_tf[["3"]])
+        tmp4 <- mm(Rfast::eachrow(matrix_list[["U_U"]], d, "*"), prep_gnt_tf[["2"]]) +
+          mm(Rfast::eachrow(matrix_list[["U_U"]], d, "*"), prep_gnt_tf[["3"]])
 
-        tmp5 <- eigenMapMatMult2(Rfast::eachrow(matrix_list[["MT_M"]], e, "*"), prep_gnt_tf[["2"]]) +
-          eigenMapMatMult2(Rfast::eachrow(matrix_list[["PT_M"]], e, "*"), prep_gnt_tf[["3"]]) +
-          eigenMapMatMult2(Rfast::eachrow(matrix_list[["PT_M"]], e, "*"), prep_gnt_tf[["1"]]) +
-          eigenMapMatMult2(Rfast::eachrow(matrix_list[["MT_M"]], e, "*"), prep_gnt_tf[["1"]]) +
-          eigenMapMatMult2(Rfast::eachrow(matrix_list[["U_M"]], e, "*"), prep_gnt_tf[["1"]])
+        tmp5 <- mm(Rfast::eachrow(matrix_list[["MT_M"]], e, "*"), prep_gnt_tf[["2"]]) +
+          mm(Rfast::eachrow(matrix_list[["PT_M"]], e, "*"), prep_gnt_tf[["3"]]) +
+          mm(Rfast::eachrow(matrix_list[["PT_M"]], e, "*"), prep_gnt_tf[["1"]]) +
+          mm(Rfast::eachrow(matrix_list[["MT_M"]], e, "*"), prep_gnt_tf[["1"]]) +
+          mm(Rfast::eachrow(matrix_list[["U_M"]], e, "*"), prep_gnt_tf[["1"]])
 
-        tmp6 <- eigenMapMatMult2(Rfast::eachrow(matrix_list[["MT_U"]], f, "*"), prep_gnt_tf[["2"]]) +
-          eigenMapMatMult2(Rfast::eachrow(matrix_list[["PT_U"]], f, "*"), prep_gnt_tf[["3"]]) +
-          eigenMapMatMult2(Rfast::eachrow(matrix_list[["MT_U"]], f, "*"), prep_gnt_tf[["1"]]) +
-          eigenMapMatMult2(Rfast::eachrow(matrix_list[["PT_U"]], f, "*"), prep_gnt_tf[["1"]]) +
-          eigenMapMatMult2(Rfast::eachrow(matrix_list[["U_U"]], f, "*"), prep_gnt_tf[["1"]])
+        tmp6 <- mm(Rfast::eachrow(matrix_list[["MT_U"]], f, "*"), prep_gnt_tf[["2"]]) +
+          mm(Rfast::eachrow(matrix_list[["PT_U"]], f, "*"), prep_gnt_tf[["3"]]) +
+          mm(Rfast::eachrow(matrix_list[["MT_U"]], f, "*"), prep_gnt_tf[["1"]]) +
+          mm(Rfast::eachrow(matrix_list[["PT_U"]], f, "*"), prep_gnt_tf[["1"]]) +
+          mm(Rfast::eachrow(matrix_list[["U_U"]], f, "*"), prep_gnt_tf[["1"]])
         }
       }else{
         # TODO: replace sweep with Rfast - but Rfast has a bug 20240204
-        # tmp1 <- eigenMapMatMult2(t(Rfast::eachrow(t(matrix_list[["MT_M"]]), a, "*")), prep_gnt_tf[["4"]]) +
-        #   eigenMapMatMult2(t(Rfast::eachrow(t(matrix_list[["PT_M"]]), a, "*")), prep_gnt_tf[["4"]]) +
-        #   eigenMapMatMult2(t(Rfast::eachrow(t(matrix_list[["U_M"]]), a, "*")), prep_gnt_tf[["4"]]) +
-        #   eigenMapMatMult2(t(Rfast::eachrow(t(matrix_list[["PT_M"]]), a, "*")), prep_gnt_tf[["2"]]) +
-        #   eigenMapMatMult2(t(Rfast::eachrow(t(matrix_list[["MT_M"]]), a, "*")), prep_gnt_tf[["3"]])
+        # tmp1 <- mm(t(Rfast::eachrow(t(matrix_list[["MT_M"]]), a, "*")), prep_gnt_tf[["4"]]) +
+        #   mm(t(Rfast::eachrow(t(matrix_list[["PT_M"]]), a, "*")), prep_gnt_tf[["4"]]) +
+        #   mm(t(Rfast::eachrow(t(matrix_list[["U_M"]]), a, "*")), prep_gnt_tf[["4"]]) +
+        #   mm(t(Rfast::eachrow(t(matrix_list[["PT_M"]]), a, "*")), prep_gnt_tf[["2"]]) +
+        #   mm(t(Rfast::eachrow(t(matrix_list[["MT_M"]]), a, "*")), prep_gnt_tf[["3"]])
         #
-        # tmp2 <- eigenMapMatMult2(t(Rfast::eachrow(t(matrix_list[["MT_U"]]), b, "*")), prep_gnt_tf[["4"]]) +
-        #   eigenMapMatMult2(t(Rfast::eachrow(t(matrix_list[["PT_U"]]), b, "*")), prep_gnt_tf[["4"]]) +
-        #   eigenMapMatMult2(t(Rfast::eachrow(t(matrix_list[["U_U"]]), b, "*")), prep_gnt_tf[["4"]]) +
-        #   eigenMapMatMult2(t(Rfast::eachrow(t(matrix_list[["PT_U"]]), b, "*")), prep_gnt_tf[["2"]]) +
-        #   eigenMapMatMult2(t(Rfast::eachrow(t(matrix_list[["MT_U"]]), b, "*")), prep_gnt_tf[["3"]])
+        # tmp2 <- mm(t(Rfast::eachrow(t(matrix_list[["MT_U"]]), b, "*")), prep_gnt_tf[["4"]]) +
+        #   mm(t(Rfast::eachrow(t(matrix_list[["PT_U"]]), b, "*")), prep_gnt_tf[["4"]]) +
+        #   mm(t(Rfast::eachrow(t(matrix_list[["U_U"]]), b, "*")), prep_gnt_tf[["4"]]) +
+        #   mm(t(Rfast::eachrow(t(matrix_list[["PT_U"]]), b, "*")), prep_gnt_tf[["2"]]) +
+        #   mm(t(Rfast::eachrow(t(matrix_list[["MT_U"]]), b, "*")), prep_gnt_tf[["3"]])
         #
-        # tmp3 <- eigenMapMatMult2(t(Rfast::eachrow(t(matrix_list[["U_M"]]), c, "*")), prep_gnt_tf[["2"]]) +
-        #   eigenMapMatMult2(t(Rfast::eachrow(t(matrix_list[["U_M"]]), c, "*")), prep_gnt_tf[["3"]])
+        # tmp3 <- mm(t(Rfast::eachrow(t(matrix_list[["U_M"]]), c, "*")), prep_gnt_tf[["2"]]) +
+        #   mm(t(Rfast::eachrow(t(matrix_list[["U_M"]]), c, "*")), prep_gnt_tf[["3"]])
         #
-        # tmp4 <- eigenMapMatMult2(t(Rfast::eachrow(t(matrix_list[["U_U"]]), d, "*")), prep_gnt_tf[["2"]]) +
-        #   eigenMapMatMult2(t(Rfast::eachrow(t(matrix_list[["U_U"]]), d, "*")), prep_gnt_tf[["3"]])
+        # tmp4 <- mm(t(Rfast::eachrow(t(matrix_list[["U_U"]]), d, "*")), prep_gnt_tf[["2"]]) +
+        #   mm(t(Rfast::eachrow(t(matrix_list[["U_U"]]), d, "*")), prep_gnt_tf[["3"]])
         #
-        # tmp5 <- eigenMapMatMult2(t(Rfast::eachrow(t(matrix_list[["MT_M"]]), e, "*")), prep_gnt_tf[["2"]]) +
-        #   eigenMapMatMult2(t(Rfast::eachrow(t(matrix_list[["PT_M"]]), e, "*")), prep_gnt_tf[["3"]]) +
-        #   eigenMapMatMult2(t(Rfast::eachrow(t(matrix_list[["PT_M"]]), e, "*")), prep_gnt_tf[["1"]]) +
-        #   eigenMapMatMult2(t(Rfast::eachrow(t(matrix_list[["MT_M"]]), e, "*")), prep_gnt_tf[["1"]]) +
-        #   eigenMapMatMult2(t(Rfast::eachrow(t(matrix_list[["U_M"]]), e, "*")), prep_gnt_tf[["1"]])
+        # tmp5 <- mm(t(Rfast::eachrow(t(matrix_list[["MT_M"]]), e, "*")), prep_gnt_tf[["2"]]) +
+        #   mm(t(Rfast::eachrow(t(matrix_list[["PT_M"]]), e, "*")), prep_gnt_tf[["3"]]) +
+        #   mm(t(Rfast::eachrow(t(matrix_list[["PT_M"]]), e, "*")), prep_gnt_tf[["1"]]) +
+        #   mm(t(Rfast::eachrow(t(matrix_list[["MT_M"]]), e, "*")), prep_gnt_tf[["1"]]) +
+        #   mm(t(Rfast::eachrow(t(matrix_list[["U_M"]]), e, "*")), prep_gnt_tf[["1"]])
         #
-        # tmp6 <- eigenMapMatMult2(t(Rfast::eachrow(t(matrix_list[["MT_U"]]), f, "*")), prep_gnt_tf[["2"]]) +
-        #   eigenMapMatMult2(t(Rfast::eachrow(t(matrix_list[["PT_U"]]), f, "*")), prep_gnt_tf[["3"]]) +
-        #   eigenMapMatMult2(t(Rfast::eachrow(t(matrix_list[["MT_U"]]), f, "*")), prep_gnt_tf[["1"]]) +
-        #   eigenMapMatMult2(t(Rfast::eachrow(t(matrix_list[["PT_U"]]), f, "*")), prep_gnt_tf[["1"]]) +
-        #   eigenMapMatMult2(t(Rfast::eachrow(t(matrix_list[["U_U"]]), f, "*")), prep_gnt_tf[["1"]])
+        # tmp6 <- mm(t(Rfast::eachrow(t(matrix_list[["MT_U"]]), f, "*")), prep_gnt_tf[["2"]]) +
+        #   mm(t(Rfast::eachrow(t(matrix_list[["PT_U"]]), f, "*")), prep_gnt_tf[["3"]]) +
+        #   mm(t(Rfast::eachrow(t(matrix_list[["MT_U"]]), f, "*")), prep_gnt_tf[["1"]]) +
+        #   mm(t(Rfast::eachrow(t(matrix_list[["PT_U"]]), f, "*")), prep_gnt_tf[["1"]]) +
+        #   mm(t(Rfast::eachrow(t(matrix_list[["U_U"]]), f, "*")), prep_gnt_tf[["1"]])
 
-        tmp1 <- eigenMapMatMult2(sweep(matrix_list[["MT_M"]], MARGIN = 2, a, "*"), prep_gnt_tf[["4"]]) +
-          eigenMapMatMult2(sweep(matrix_list[["PT_M"]], MARGIN = 2, a, "*"), prep_gnt_tf[["4"]]) +
-          eigenMapMatMult2(sweep(matrix_list[["U_M"]], MARGIN = 2, a, "*"), prep_gnt_tf[["4"]]) +
-          eigenMapMatMult2(sweep(matrix_list[["PT_M"]], MARGIN = 2, a, "*"), prep_gnt_tf[["2"]]) +
-          eigenMapMatMult2(sweep(matrix_list[["MT_M"]], MARGIN = 2, a, "*"), prep_gnt_tf[["3"]])
+        tmp1 <- mm(sweep(matrix_list[["MT_M"]], MARGIN = 2, a, "*"), prep_gnt_tf[["4"]]) +
+          mm(sweep(matrix_list[["PT_M"]], MARGIN = 2, a, "*"), prep_gnt_tf[["4"]]) +
+          mm(sweep(matrix_list[["U_M"]], MARGIN = 2, a, "*"), prep_gnt_tf[["4"]]) +
+          mm(sweep(matrix_list[["PT_M"]], MARGIN = 2, a, "*"), prep_gnt_tf[["2"]]) +
+          mm(sweep(matrix_list[["MT_M"]], MARGIN = 2, a, "*"), prep_gnt_tf[["3"]])
 
-        tmp2 <- eigenMapMatMult2(sweep(matrix_list[["MT_U"]], MARGIN = 2, b, "*"), prep_gnt_tf[["4"]]) +
-          eigenMapMatMult2(sweep(matrix_list[["PT_U"]], MARGIN = 2, b, "*"), prep_gnt_tf[["4"]]) +
-          eigenMapMatMult2(sweep(matrix_list[["U_U"]], MARGIN = 2, b, "*"), prep_gnt_tf[["4"]]) +
-          eigenMapMatMult2(sweep(matrix_list[["PT_U"]], MARGIN = 2, b, "*"), prep_gnt_tf[["2"]]) +
-          eigenMapMatMult2(sweep(matrix_list[["MT_U"]], MARGIN = 2, b, "*"), prep_gnt_tf[["3"]])
+        tmp2 <- mm(sweep(matrix_list[["MT_U"]], MARGIN = 2, b, "*"), prep_gnt_tf[["4"]]) +
+          mm(sweep(matrix_list[["PT_U"]], MARGIN = 2, b, "*"), prep_gnt_tf[["4"]]) +
+          mm(sweep(matrix_list[["U_U"]], MARGIN = 2, b, "*"), prep_gnt_tf[["4"]]) +
+          mm(sweep(matrix_list[["PT_U"]], MARGIN = 2, b, "*"), prep_gnt_tf[["2"]]) +
+          mm(sweep(matrix_list[["MT_U"]], MARGIN = 2, b, "*"), prep_gnt_tf[["3"]])
 
-        tmp3 <- eigenMapMatMult2(sweep(matrix_list[["U_M"]], MARGIN = 2, c, "*"), prep_gnt_tf[["2"]]) +
-          eigenMapMatMult2(sweep(matrix_list[["U_M"]], MARGIN = 2, c, "*"), prep_gnt_tf[["3"]])
+        tmp3 <- mm(sweep(matrix_list[["U_M"]], MARGIN = 2, c, "*"), prep_gnt_tf[["2"]]) +
+          mm(sweep(matrix_list[["U_M"]], MARGIN = 2, c, "*"), prep_gnt_tf[["3"]])
 
-        tmp4 <- eigenMapMatMult2(sweep(matrix_list[["U_U"]], MARGIN = 2, d, "*"), prep_gnt_tf[["2"]]) +
-          eigenMapMatMult2(sweep(matrix_list[["U_U"]], MARGIN = 2, d, "*"), prep_gnt_tf[["3"]])
+        tmp4 <- mm(sweep(matrix_list[["U_U"]], MARGIN = 2, d, "*"), prep_gnt_tf[["2"]]) +
+          mm(sweep(matrix_list[["U_U"]], MARGIN = 2, d, "*"), prep_gnt_tf[["3"]])
 
-        tmp5 <- eigenMapMatMult2(sweep(matrix_list[["MT_M"]], MARGIN = 2, e, "*"), prep_gnt_tf[["2"]]) +
-          eigenMapMatMult2(sweep(matrix_list[["PT_M"]], MARGIN = 2, e, "*"), prep_gnt_tf[["3"]]) +
-          eigenMapMatMult2(sweep(matrix_list[["PT_M"]], MARGIN = 2, e, "*"), prep_gnt_tf[["1"]]) +
-          eigenMapMatMult2(sweep(matrix_list[["MT_M"]], MARGIN = 2, e, "*"), prep_gnt_tf[["1"]]) +
-          eigenMapMatMult2(sweep(matrix_list[["U_M"]], MARGIN = 2, e, "*"), prep_gnt_tf[["1"]])
+        tmp5 <- mm(sweep(matrix_list[["MT_M"]], MARGIN = 2, e, "*"), prep_gnt_tf[["2"]]) +
+          mm(sweep(matrix_list[["PT_M"]], MARGIN = 2, e, "*"), prep_gnt_tf[["3"]]) +
+          mm(sweep(matrix_list[["PT_M"]], MARGIN = 2, e, "*"), prep_gnt_tf[["1"]]) +
+          mm(sweep(matrix_list[["MT_M"]], MARGIN = 2, e, "*"), prep_gnt_tf[["1"]]) +
+          mm(sweep(matrix_list[["U_M"]], MARGIN = 2, e, "*"), prep_gnt_tf[["1"]])
 
-        tmp6 <- eigenMapMatMult2(sweep(matrix_list[["MT_U"]], MARGIN = 2, f, "*"), prep_gnt_tf[["2"]]) +
-          eigenMapMatMult2(sweep(matrix_list[["PT_U"]], MARGIN = 2, f, "*"), prep_gnt_tf[["3"]]) +
-          eigenMapMatMult2(sweep(matrix_list[["MT_U"]], MARGIN = 2, f, "*"), prep_gnt_tf[["1"]]) +
-          eigenMapMatMult2(sweep(matrix_list[["PT_U"]], MARGIN = 2, f, "*"), prep_gnt_tf[["1"]]) +
-          eigenMapMatMult2(sweep(matrix_list[["U_U"]], MARGIN = 2, f, "*"), prep_gnt_tf[["1"]])
+        tmp6 <- mm(sweep(matrix_list[["MT_U"]], MARGIN = 2, f, "*"), prep_gnt_tf[["2"]]) +
+          mm(sweep(matrix_list[["PT_U"]], MARGIN = 2, f, "*"), prep_gnt_tf[["3"]]) +
+          mm(sweep(matrix_list[["MT_U"]], MARGIN = 2, f, "*"), prep_gnt_tf[["1"]]) +
+          mm(sweep(matrix_list[["PT_U"]], MARGIN = 2, f, "*"), prep_gnt_tf[["1"]]) +
+          mm(sweep(matrix_list[["U_U"]], MARGIN = 2, f, "*"), prep_gnt_tf[["1"]])
 
       } # end of site_specific == FALSE
 
@@ -1108,22 +1094,12 @@ estimate_likelihoods <- function(genotype_vectors,
   } # end of length(a) > 1 & len(e) > 1
 
   if(the$number_of_states == 2){
-    p_new = eigenMapMatMult2(tmp1 + tmp2, prep_gnt_tf[["2"]]) +
-      eigenMapMatMult2(tmp5 + tmp6, prep_gnt_tf[["1"]])
+    p_new = mm(tmp1 + tmp2, prep_gnt_tf[["2"]]) +
+      mm(tmp5 + tmp6, prep_gnt_tf[["1"]])
   }else if(the$number_of_states == 3){
-    if(the$use_ff){
-      p_new=methods::as((tmp1 + tmp2), "HDF5Matrix") %*% methods::as(prep_gnt_tf[["3"]], "HDF5Matrix") +
-        methods::as((tmp3 + tmp4), "HDF5Matrix") %*% methods::as(prep_gnt_tf[["2"]], "HDF5Matrix") +
-        methods::as((tmp5 + tmp6), "HDF5Matrix") %*% methods::as(prep_gnt_tf[["1"]], "HDF5Matrix")
-    }else if(the$use_Rfast){
-      p_new=Rfast::mat.mult((tmp1 + tmp2), prep_gnt_tf[["3"]]) +
-        Rfast::mat.mult((tmp3 + tmp4), prep_gnt_tf[["2"]]) +
-        Rfast::mat.mult((tmp5 + tmp6), prep_gnt_tf[["1"]])
-    }else{
-      p_new=eigenMapMatMult2((tmp1 + tmp2), prep_gnt_tf[["3"]]) +
-        eigenMapMatMult2((tmp3 + tmp4), prep_gnt_tf[["2"]]) +
-        eigenMapMatMult2((tmp5 + tmp6), prep_gnt_tf[["1"]])
-    }
+    p_new=mm((tmp1 + tmp2), prep_gnt_tf[["3"]]) +
+      mm((tmp3 + tmp4), prep_gnt_tf[["2"]]) +
+      mm((tmp5 + tmp6), prep_gnt_tf[["1"]])
   }
 
   # done computing likelihoods
