@@ -105,7 +105,7 @@ the$Q <- getQMatrix(the$df_rate)
 the$useQ <- FALSE
 the$use_ff <- FALSE
 the$use_Rfast <- FALSE
-the$use_rgpumult <- TRUE
+the$use_rgpumult <- FALSE
 
 #' Report my default settings
 #'
@@ -241,7 +241,12 @@ set_memento_settings <- function(new_number_of_states = NULL,
     the$use_Rfast <- new_use_Rfast
   }
   if(!is.null(new_use_rgpumult)){
-    the$use_rgpumult <- new_use_rgpumult
+    if (!requireNamespace("rgpumult", quietly = TRUE)) {
+      message("To use rgpumult you must install it")
+      the$use_rgpumult <- FALSE
+    } else {
+      the$use_rgpumult <- new_use_rgpumult
+    }
   }
   invisible(old_num_states)
 }
