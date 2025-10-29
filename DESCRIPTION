@@ -5,7 +5,9 @@ Version: 0.1.0
 Authors@R: c(person("Lori", "Kregar", email = "ld18@sanger.ac.uk",
   role = c("aut", "cre")),
   person("Nick", "Williams", email = "nw14@sanger.ac.uk",
-  role = c("aut")))
+  role = c("aut")),
+  person("Martin", "Pollard", email = "mp15@sanger.ac.uk",
+  role = c("aut"))
 Description: 
     Infer phylogenetically inherited changes between states from binomially distributed phenotype data.
 License: MIT + file LICENSE
@@ -30,7 +32,6 @@ Imports:
     phytools,
     plyr,
     Rfast,
-    rgpumult,
     rlang,
     tidytree
 Suggests: 
@@ -38,6 +39,7 @@ Suggests:
     HDF5Array,
     knitr,
     optparse,
+    rgpumult,
     rmarkdown,
     S4Arrays,
     testthat (>= 3.0.0)
