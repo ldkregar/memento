@@ -12,11 +12,11 @@ states on a phylogeny.
 
 ![](man/figures/tree_read_counts_solution3.png)
 
-Suppose you know the number of methylated and unmethylated read counts
-at a CpG site across all tips of a phylogeny. The question Memento
-addresses is whether the tip states are inherited from the root and
-whether any of the internal nodes changed its state, which was then
-inherited by its descendants.
+Suppose you know the number of methylated and unmethylated (M and U,
+respectively, in the figure above) read counts at a CpG site across all
+tips of a phylogeny. The question Memento addresses is, assuming states
+are inherited by descendant nodes, what state changes along the branches
+of the phylogeny would best explain the observed read counts.
 
 Memento will take two vectors of counts as well as the phylogeny of tips
 and return the most likely root state, which branches changed and what
@@ -27,8 +27,8 @@ it generates all possible tip state vectors for up to $m$ number of
 independent changes on a phylogeny and then compares the observed data
 to each possible expected vector of tip states. The expected tip vector
 with highest similarity to observed is selected and since we know how
-the expected tip vector was generated, we can infer the root state and
-which branches changed.
+the expected tip vector was generated, we thus infer the root state and
+which branches changed to produce the observed data.
 
 Since Memento relies on exhaustive search, generating expected tip
 states for many independent changes on a phylogeny quickly becomes
@@ -44,17 +44,17 @@ the 4 state model.
 
 Since Memento computes probabilities for a large set of possible tip
 states, it can also return second, third etc. best solution for a given
-CpG site.
+CpG site, but only in the non-split setting.
 
 Memento also contains several visualisation functions to plot the found
 changes.
 
 Priors assume longer branches are more likely to have changed than
-shorter ones. Simultaneously, fewer changes are more likely than
-several. For example, if one solution proposes two descendant branches
-from a node both underwent the same transition, and another solution
-proposes the ancestral branch of the node underwent that transition, the
-latter will have higher probability.
+shorter ones and fewer changes are more likely than several. For
+example, if one solution proposes two descendant branches from a node
+both underwent the same transition, and another solution proposes the
+ancestral branch of the node underwent that transition, the latter will
+be more likely if all branch lengths are identical.
 
 ## Nota Bene
 
