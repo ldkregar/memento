@@ -1,7 +1,11 @@
 // [[Rcpp::depends(RcppEigen)]]
-// [[Rcpp::plugins(openmp)]]
 
+// OpenMP is optional: when the toolchain supports it, src/Makevars passes
+// $(SHLIB_OPENMP_CXXFLAGS) and Eigen parallelises the product. Without it,
+// Eigen::setNbThreads() is a no-op and the product runs single-threaded.
+#ifdef _OPENMP
 #include <omp.h>
+#endif
 #include <RcppEigen.h>
 
 // [[Rcpp::export]]

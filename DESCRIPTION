@@ -7,7 +7,7 @@ Authors@R: c(person("Lori", "Kregar", email = "ld18@sanger.ac.uk",
   person("Nick", "Williams", email = "nw14@sanger.ac.uk",
   role = c("aut")),
   person("Martin", "Pollard", email = "mp15@sanger.ac.uk",
-  role = c("aut"))
+  role = c("aut")))
 Description: 
     Infer phylogenetically inherited changes between states from binomially distributed phenotype data.
 License: MIT + file LICENSE
