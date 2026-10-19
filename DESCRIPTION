@@ -1,7 +1,7 @@
 Package: memento
 Type: Package
 Title: Infer CpG Methylation States On A Phylogeny
-Version: 0.1.0
+Version: 0.1.1
 Authors@R: c(person("Lori", "Kregar", email = "ld18@sanger.ac.uk",
   role = c("aut", "cre")),
   person("Nick", "Williams", email = "nw14@sanger.ac.uk",
