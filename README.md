@@ -4,10 +4,13 @@
 # Memento
 
 <!-- badges: start -->
+
 <!-- badges: end -->
 
 Memento is a suite of functions to find change points in phenotype
 states on a phylogeny.
+
+![](man/figures/tree_read_counts_solution3.png)
 
 Suppose you know the number of methylated and unmethylated read counts
 at a CpG site across all tips of a phylogeny. The question Memento
@@ -60,9 +63,9 @@ is the case! In addition, when supplying lists of read counts to
 functions, ensure the matrices are named correctly. See the vignette for
 examples, this is especially important when dealing with phased data.
 
-This library is under active development so some unexpected behaviour
-may occur. Drop me an email if you require help, I’m at LD18 at sanger
-dot ac dot uk.
+This library is under development so some unexpected behaviour may
+occur. Drop me an email if you require help, I’m at LD18 at sanger dot
+ac dot uk.
 
 ## Installation
 
