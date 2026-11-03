@@ -69,10 +69,19 @@ ac dot uk.
 
 ## Installation
 
-You can install the development version of Memento from
-[GitHub](https://github.com/) with:
+Memento depends on a few libraries that are distributed through
+Bioconductor rather than CRAN. Install them first:
 
 ``` r
-# install.packages("devtools")
-devtools::install_github("ldkregar/memento")
+if (!requireNamespace("BiocManager", quietly = TRUE))
+    install.packages("BiocManager")
+BiocManager::install(c("ggtree", "DelayedArray", "HDF5Array", "S4Arrays"))
+```
+
+Then install memento from GitHub:
+
+``` r
+if (!requireNamespace("remotes", quietly = TRUE))
+    install.packages("remotes")
+remotes::install_github("ldkregar/memento")
 ```
